@@ -1,0 +1,2955 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 챗봇 관리자</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', -apple-system, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 260px;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+            z-index: 100;
+        }
+        .sidebar-header {
+            padding: 24px 20px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sidebar-header .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #4a6cf7, #6b8cff);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .sidebar-header h1 { color: #fff; font-size: 18px; font-weight: 700; }
+
+        .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            color: #8892b0;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 14px;
+            margin-bottom: 2px;
+            text-decoration: none;
+        }
+        .nav-item:hover { color: #ccd6f6; background: rgba(255,255,255,0.05); }
+        .nav-item.active { color: #fff; background: #4a6cf7; }
+        .nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px;
+            color: #4a5568;
+        }
+
+        /* ── Main ── */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .topbar {
+            background: #fff;
+            padding: 0 28px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .topbar-search {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+        .topbar-search input {
+            width: 100%;
+            padding: 9px 16px 9px 38px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .topbar-search input:focus { border-color: #4a6cf7; }
+        .topbar-search::before {
+            content: '🔍';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+        .topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .topbar-user {
+            font-size: 13px;
+            color: #4a5568;
+            font-weight: 600;
+        }
+        .topbar-logout {
+            background: none;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .topbar-logout:hover { border-color: #e53e3e; color: #e53e3e; }
+        .mobile-menu-btn {
+            display: none;
+            background: none; border: none;
+            font-size: 24px; cursor: pointer; color: #4a5568;
+        }
+
+        /* ── Content ── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px;
+        }
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-title {
+            font-size: 22px; font-weight: 700; color: #1a202c; margin-bottom: 24px;
+        }
+
+        /* ── Cards ── */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .stat-card .label { font-size: 13px; color: #718096; margin-bottom: 8px; }
+        .stat-card .value { font-size: 32px; font-weight: 700; color: #1a202c; }
+        .stat-card .change {
+            font-size: 12px; margin-top: 6px;
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 6px;
+        }
+        .stat-card .change.up { color: #38a169; background: #f0fff4; }
+        .stat-card .change.down { color: #e53e3e; background: #fff5f5; }
+        .stat-card .change.neutral { color: #718096; background: #f7fafc; }
+
+        /* ── Tables ── */
+        .card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-header h3 { font-size: 16px; font-weight: 600; color: #1a202c; }
+        .card-body { padding: 0; }
+        .card-body.padded { padding: 24px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            background: #f7fafc;
+            color: #718096;
+            font-weight: 600;
+            font-size: 12px;
+            border-bottom: 1px solid #edf2f7;
+            white-space: nowrap;
+        }
+        table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #4a5568;
+            vertical-align: top;
+        }
+        table tr:hover { background: #f7fafc; }
+        table tr:last-child td { border-bottom: none; }
+        table .clickable { cursor: pointer; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn-primary { background: #4a6cf7; color: #fff; }
+        .btn-primary:hover { background: #3b5de7; }
+        .btn-secondary { background: #edf2f7; color: #4a5568; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
+        .btn-danger:hover { background: #fed7d7; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Forms ── */
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #4a6cf7;
+        }
+        .form-group textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+        .form-row { display: flex; gap: 16px; }
+        .form-row .form-group { flex: 1; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 560px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 17px; font-weight: 600; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: #a0aec0;
+            line-height: 1;
+        }
+        .modal-close:hover { color: #4a5568; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ── Chat Bubbles (for session view) ── */
+        .chat-panel {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .chat-bubble {
+            max-width: 70%;
+            padding: 10px 16px;
+            border-radius: 18px;
+            font-size: 13.5px;
+            line-height: 1.7;
+            word-break: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            position: relative;
+        }
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: #4a6cf7;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            margin-left: 20%;
+        }
+        .chat-bubble.assistant {
+            align-self: flex-start;
+            background: #fff;
+            color: #1a202c;
+            border: 1px solid #e8ecf1;
+            border-bottom-left-radius: 4px;
+            margin-right: 20%;
+        }
+        .chat-bubble p { margin-bottom: 6px; }
+        .chat-bubble p:last-child { margin-bottom: 0; }
+        .chat-bubble.assistant table { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
+        .chat-bubble.assistant th, .chat-bubble.assistant td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
+        .chat-bubble.assistant th { background: #f7f8fa; font-weight: 600; }
+        .chat-bubble.assistant ul, .chat-bubble.assistant ol { padding-left: 18px; margin: 4px 0; }
+        .chat-bubble.assistant li { margin: 2px 0; }
+        .chat-bubble.assistant code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+        .chat-bubble.assistant a { color: #4a6cf7; text-decoration: underline; }
+
+        /* ── Pagination ── */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 16px;
+        }
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #4a5568;
+            font-family: inherit;
+        }
+        .pagination button:hover { border-color: #4a6cf7; color: #4a6cf7; }
+        .pagination button.active { background: #4a6cf7; color: #fff; border-color: #4a6cf7; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Upload ── */
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+            background: #fafbfc;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #4a6cf7;
+            background: #f0f4ff;
+        }
+        .upload-zone .icon { font-size: 40px; margin-bottom: 12px; }
+        .upload-zone p { color: #718096; font-size: 14px; }
+        .upload-zone .sub { font-size: 12px; color: #a0aec0; margin-top: 6px; }
+
+        /* ── Badge ── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-blue { background: #ebf4ff; color: #4a6cf7; }
+        .badge-green { background: #f0fff4; color: #38a169; }
+        .badge-gray { background: #f7fafc; color: #718096; }
+
+        /* ── Empty ── */
+        .empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: #a0aec0;
+        }
+        .empty .icon { font-size: 40px; margin-bottom: 12px; }
+        .empty p { font-size: 14px; }
+
+        /* ── Slider ── */
+        .slider-group {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .slider-group input[type="range"] {
+            flex: 1; border: none; padding: 0;
+        }
+        .slider-group .slider-value {
+            font-size: 14px; font-weight: 600; color: #4a6cf7; min-width: 32px;
+        }
+
+        /* ── Toasts ── */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: #1a202c;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+        }
+        .toast.success { background: #38a169; }
+        .toast.error { background: #e53e3e; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ── Chats Page ── */
+        .chats-container {
+            display: flex; gap: 0; height: calc(100vh - 72px);
+            background: #fff; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .chat-list-panel {
+            width: 420px; min-width: 360px; border-right: 1px solid #e8ecf1;
+            display: flex; flex-direction: column; background: #fff;
+        }
+        .chat-list-header {
+            padding: 20px 24px 16px; display: flex; align-items: center;
+            justify-content: space-between; border-bottom: 1px solid #e8ecf1;
+        }
+        .chat-list-header h2 { font-size: 20px; font-weight: 700; color: #1a202c; }
+        .chat-list-status {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 13px; color: #38a169;
+        }
+        .status-dot {
+            width: 8px; height: 8px; background: #38a169;
+            border-radius: 50%; display: inline-block;
+        }
+        .chat-list-tabs {
+            padding: 0 24px; border-bottom: 1px solid #e8ecf1;
+            display: flex; gap: 0;
+        }
+        .chat-tab {
+            padding: 12px 20px; border: none; background: none;
+            font-size: 14px; color: #718096; cursor: pointer;
+            border-bottom: 2px solid transparent; font-weight: 500;
+        }
+        .chat-tab.active {
+            color: #4a6cf7; border-bottom-color: #4a6cf7; font-weight: 600;
+        }
+        .chat-list-filter {
+            padding: 12px 16px; display: flex; gap: 8px;
+            border-bottom: 1px solid #e8ecf1; align-items: center;
+        }
+        .chat-list-filter select {
+            padding: 7px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 13px; background: #fff; color: #4a5568; min-width: 100px;
+        }
+        .chat-search-box {
+            flex: 1; position: relative;
+        }
+        .chat-search-box input {
+            width: 100%; padding: 7px 32px 7px 12px; border: 1px solid #e2e8f0;
+            border-radius: 8px; font-size: 13px; outline: none;
+        }
+        .chat-search-box input:focus { border-color: #4a6cf7; }
+        .chat-search-box .search-icon {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            font-size: 14px; opacity: 0.5;
+        }
+        .chat-list-items {
+            flex: 1; overflow-y: auto;
+        }
+        .chat-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 20px; cursor: pointer; border-bottom: 1px solid #f0f2f5;
+            transition: background 0.15s;
+        }
+        .chat-item:hover { background: #f7fafc; }
+        .chat-item.active { background: #ebf4ff; }
+        .chat-item-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e0);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0; color: #4a5568;
+        }
+        .chat-item-content { flex: 1; min-width: 0; }
+        .chat-item-top {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 4px;
+        }
+        .chat-item-name {
+            font-weight: 600; font-size: 14px; color: #1a202c;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .chat-item-badge {
+            background: #e53e3e; color: #fff; font-size: 11px; font-weight: 600;
+            padding: 1px 7px; border-radius: 10px; margin-left: 6px; flex-shrink: 0;
+        }
+        .chat-item-time {
+            font-size: 12px; color: #a0aec0; white-space: nowrap; flex-shrink: 0;
+        }
+        .chat-item-preview {
+            font-size: 13px; color: #718096;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .chat-detail-panel {
+            flex: 1; display: flex; flex-direction: column; background: #f0f2f5;
+        }
+        .chat-detail-header {
+            padding: 14px 20px; background: #fff;
+            border-bottom: 1px solid #e8ecf1;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .chat-detail-info h3 {
+            font-size: 15px; font-weight: 600; color: #1a202c;
+        }
+        .chat-detail-meta {
+            font-size: 11px; color: #a0aec0; margin-top: 2px;
+        }
+        .chat-detail-messages {
+            flex: 1; overflow-y: auto; padding: 16px 20px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .chat-empty-state {
+            text-align: center; color: #a0aec0; padding: 80px 20px;
+            font-size: 15px; line-height: 2;
+        }
+
+        /* ── Chat Status ── */
+        .status-badge {
+            display: inline-block; font-size: 11px; font-weight: 600;
+            padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+        }
+        .status-badge.active { background: #c6f6d5; color: #276749; }
+        .status-badge.delayed { background: #fefcbf; color: #975a16; }
+        .status-badge.closed { background: #e2e8f0; color: #718096; }
+
+        .chat-detail-actions {
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+        }
+        .status-label {
+            font-size: 12px; font-weight: 600; padding: 4px 10px;
+            border-radius: 8px;
+        }
+        .status-label.active { background: #c6f6d5; color: #276749; }
+        .status-label.delayed { background: #fefcbf; color: #975a16; }
+        .status-label.closed { background: #e2e8f0; color: #718096; }
+
+        .btn-action {
+            padding: 6px 14px; border: none; border-radius: 8px;
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-close-chat { background: #edf2f7; color: #4a5568; }
+        .btn-close-chat:hover { background: #e2e8f0; }
+        .btn-exit-chat { background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
+        .btn-exit-chat:hover { background: #e53e3e; color: #fff; }
+
+        /* ── Admin Reply ── */
+        .admin-reply-area {
+            padding: 12px 16px 14px;
+            background: #fff;
+            border-top: 1px solid #e8ecf1;
+        }
+        .admin-reply-wrapper {
+            display: flex; gap: 8px; align-items: flex-end;
+        }
+        .admin-reply-wrapper textarea {
+            flex: 1; padding: 10px 16px; border: 1px solid #e2e8f0;
+            border-radius: 22px; font-size: 13px; resize: none;
+            outline: none; font-family: inherit; line-height: 1.5;
+            max-height: 100px; background: #f7f8fa;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .admin-reply-wrapper textarea:focus { border-color: #4a6cf7; background: #fff; box-shadow: 0 0 0 3px rgba(74,108,247,0.08); }
+        .admin-reply-btn {
+            padding: 10px 18px; background: #4a6cf7; color: #fff;
+            border: none; border-radius: 22px; font-size: 13px;
+            font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: all 0.2s; height: 40px;
+        }
+        .admin-reply-btn:hover { background: #3b5de7; transform: scale(1.02); }
+        .admin-reply-btn:disabled { background: #a0aec0; cursor: not-allowed; transform: none; }
+
+        /* Toggle switch */
+        .tog-slider { position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:26px;transition:0.3s; }
+        .tog-slider:before { content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s; }
+        input:checked + .tog-slider { background:#4a6cf7; }
+        input:checked + .tog-slider:before { transform:translateX(24px); }
+
+        /* Day checkbox */
+        .day-chk { display:flex;align-items:center;gap:4px;padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.2s;user-select:none; }
+        .day-chk:hover { border-color:#4a6cf7; }
+        .day-chk input { display:none; }
+        .day-chk:has(input:checked) { background:#4a6cf7;color:#fff;border-color:#4a6cf7; }
+
+        .text-truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+
+        /* ── Mobile ── */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                height: 100vh;
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .mobile-menu-btn { display: block; }
+            .content { padding: 16px; }
+            .stat-cards { grid-template-columns: 1fr; }
+            .form-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-icon">💬</div>
+        <h1>RAG 챗봇</h1>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+        <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+            <span class="icon">📊</span> 대시보드
+        </a>
+        <a class="nav-item" data-page="chats" onclick="navigate('chats')">
+            <span class="icon">💬</span> 내 채팅
+        </a>
+        <a class="nav-item" data-page="chat-settings" onclick="navigate('chat-settings')">
+            <span class="icon">⚙️</span> 채팅 설정
+        </a>
+        <a class="nav-item" data-page="customers" onclick="navigate('customers')">
+            <span class="icon">👥</span> 고객정보
+        </a>
+        <a class="nav-item" data-page="prompts" onclick="navigate('prompts')">
+            <span class="icon">🤖</span> 자동응답 메시지
+        </a>
+        <a class="nav-item" data-page="faq" onclick="navigate('faq')">
+            <span class="icon">📝</span> 자주 쓰는 답변
+        </a>
+        <a class="nav-item" data-page="groups" onclick="navigate('groups')">
+            <span class="icon">🏷️</span> 채팅방 라벨
+        </a>
+        <a class="nav-item" data-page="search-test" onclick="navigate('search-test')">
+            <span class="icon">🔍</span> 검색 테스트
+        </a>
+        <a class="nav-item" data-page="knowledge" onclick="navigate('knowledge')">
+            <span class="icon">📁</span> 데이터참고
+        </a>
+    </nav>
+    <div class="sidebar-footer">RAG Chatbot Admin v1.0</div>
+</aside>
+
+<div class="main">
+    <header class="topbar">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-search">
+            <input type="text" id="globalSearch" placeholder="지식 DB 검색..." onkeydown="if(event.key==='Enter')globalSearchDocs()">
+        </div>
+        <div class="topbar-right">
+            <span class="topbar-user" id="adminName">관리자</span>
+            <button class="topbar-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="content" id="content">
+
+        <!-- ====== DASHBOARD ====== -->
+        <div class="page active" id="page-dashboard">
+            <h2 class="page-title">대시보드</h2>
+            <div id="chatUrlBox" style="background:linear-gradient(135deg,#4a6cf7,#6b8cff);color:#fff;padding:16px 20px;border-radius:12px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <div style="font-size:13px;opacity:0.85;margin-bottom:4px;">사용자 채팅 URL</div>
+                    <div id="chatUrlValue" style="font-size:15px;font-weight:600;word-break:break-all;">불러오는 중...</div>
+                </div>
+                <button onclick="copyChatUrl()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;">📋 복사</button>
+            </div>
+            <div class="stat-cards" id="dashStatCards">
+                <div class="stat-card">
+                    <div class="label">전체 문서</div>
+                    <div class="value" id="statDocs">-</div>
+                    <div class="change neutral" id="statDocsChange">불러오는 중...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">전체 청크</div>
+                    <div class="value" id="statChunks">-</div>
+                    <div class="change neutral" id="statChunksChange">불러오는 중...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">오늘 채팅</div>
+                    <div class="value" id="statChats">-</div>
+                    <div class="change neutral" id="statChatsChange">불러오는 중...</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>최근 채팅 세션</h3></div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>세션 키</th><th>첫 메시지</th><th>메시지 수</th><th>날짜</th></tr></thead>
+                        <tbody id="dashSessionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== CHATS ====== -->
+        <div class="page" id="page-chats">
+            <div class="chats-container">
+                <!-- Left: Chat List -->
+                <div class="chat-list-panel">
+                    <div class="chat-list-header">
+                        <h2>채팅 목록</h2>
+                        <div class="chat-list-status">
+                            <span class="status-dot"></span> 사용중
+                        </div>
+                    </div>
+                    <div style="background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin:8px 12px 0;font-size:11px;color:#92400e;line-height:1.5;">
+                        🟡 <b>노란색 채팅</b>은 AI가 답변하지 못한 질문입니다. 관리자가 직접 답변해 주세요.
+                    </div>
+                    <div class="chat-list-tabs">
+                        <button class="chat-tab active">전체 채팅</button>
+                    </div>
+                    <div class="chat-list-filter">
+                        <select id="chatsFilter" onchange="loadChats(1)">
+                            <option value="">전체 상태</option>
+                            <option value="active">상담중</option>
+                            <option value="delayed">상담지연</option>
+                            <option value="closed">상담종료</option>
+                        </select>
+                        <div class="chat-search-box">
+                            <input type="text" id="chatsSearch" placeholder="채팅방 이름 검색" onkeyup="if(event.key==='Enter')loadChats(1)">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                    </div>
+                    <div class="chat-list-items" id="chatListItems">
+                        <!-- Dynamically filled -->
+                    </div>
+                    <div class="pagination" id="chatsPagination"></div>
+                </div>
+                <!-- Right: Chat Detail -->
+                <div class="chat-detail-panel" id="chatDetailCard">
+                    <div class="chat-detail-header" id="chatDetailHeader">
+                        <div class="chat-detail-info">
+                            <h3 id="chatDetailTitle">대화를 선택하세요</h3>
+                            <span class="chat-detail-meta" id="chatDetailMeta"></span>
+                        </div>
+                        <div class="chat-detail-actions" id="chatDetailActions" style="display:none;">
+                            <span class="status-label" id="chatDetailStatus"></span>
+                            <button class="btn-action" onclick="toggleCustomerInfo()" style="background:#f59e0b;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">고객정보</button>
+                            <button class="btn-action btn-close-chat" onclick="closeSession()">상담종료</button>
+                            <button class="btn-action btn-exit-chat" onclick="deleteSession()">나가기</button>
+                        </div>
+                    </div>
+
+                    <!-- 고객정보 패널 (토글) -->
+                    <div id="customerInfoPanel" style="display:none;background:#fafafa;border-bottom:1px solid #e5e7eb;padding:16px 20px;max-height:60vh;overflow-y:auto;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                            <span style="font-size:15px;font-weight:700;color:#1a202c;">📋 고객 정보 및 요약</span>
+                            <div style="display:flex;gap:6px;">
+                                <button onclick="summarizeCustomer()" style="background:#4a6cf7;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:600;">🔄 AI 요약</button>
+                                <button onclick="toggleCustomerInfo()" style="background:#e5e7eb;color:#6b7280;border:none;padding:6px 14px;border-radius:8px;font-size:11px;cursor:pointer;">닫기</button>
+                            </div>
+                        </div>
+                        <div id="customerInfoContent" style="font-size:13px;color:#44403c;line-height:1.7;">
+                            <div style="color:#a0aec0;text-align:center;padding:20px;">고객 정보가 없습니다. "AI 요약" 버튼을 눌러 대화를 분석하세요.</div>
+                        </div>
+                    </div>
+
+                    <div class="chat-detail-messages" id="chatDetailPanel">
+                        <div class="chat-empty-state">💬<br>왼쪽 목록에서 채팅을 선택하면<br>대화 내용이 여기에 표시됩니다.</div>
+                    </div>
+                    <div class="admin-reply-area" id="adminReplyArea" style="display:none;">
+                        <div style="display:flex;align-items:center;gap:8px;padding:0 0 8px;font-size:12px;">
+                            <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;">
+                                <input type="checkbox" id="sessionAiToggle" onchange="toggleSessionAi(this)" style="opacity:0;width:0;height:0;">
+                                <span class="tog-slider" style="border-radius:20px;"></span>
+                            </label>
+                            <span id="sessionAiLabel" style="color:#718096;">AI 자동답변</span>
+                        </div>
+                        <div class="admin-reply-wrapper">
+                            <textarea id="adminReplyInput" placeholder="관리자 답변을 입력하세요..." rows="1"
+                                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAdminReply()}"
+                                      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+                            <button class="admin-reply-btn" onclick="sendAdminReply()">전송</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== CHAT SETTINGS ====== -->
+        <div class="page" id="page-chat-settings">
+            <h2 class="page-title">채팅 설정</h2>
+
+            <!-- 1:1 채팅 사용 -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-body padded">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:15px;font-weight:600;color:#1a202c;margin-bottom:4px;">1:1 채팅 사용</div>
+                            <div style="font-size:12px;color:#718096;">비활성화하면 사용자 채팅이 중단됩니다.</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:50px;height:26px;">
+                            <input type="checkbox" id="setChatEnabled" style="opacity:0;width:0;height:0;">
+                            <span class="tog-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 채팅가능 요일 -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-body padded">
+                    <div style="font-size:15px;font-weight:600;color:#1a202c;margin-bottom:10px;">채팅가능 요일</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;" id="chatDaysGroup">
+                        <label class="day-chk"><input type="checkbox" value="mon" class="chatDay"> 월</label>
+                        <label class="day-chk"><input type="checkbox" value="tue" class="chatDay"> 화</label>
+                        <label class="day-chk"><input type="checkbox" value="wed" class="chatDay"> 수</label>
+                        <label class="day-chk"><input type="checkbox" value="thu" class="chatDay"> 목</label>
+                        <label class="day-chk"><input type="checkbox" value="fri" class="chatDay"> 금</label>
+                        <label class="day-chk"><input type="checkbox" value="sat" class="chatDay"> 토</label>
+                        <label class="day-chk"><input type="checkbox" value="sun" class="chatDay"> 일</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 채팅가능 시간 -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-body padded">
+                    <div style="font-size:15px;font-weight:600;color:#1a202c;margin-bottom:4px;">채팅가능 시간</div>
+                    <div style="font-size:12px;color:#718096;margin-bottom:12px;">설정된 시간 외에는 "상담 시간이 아닙니다" 메시지가 표시됩니다.</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="time" id="setChatStartTime" value="09:00" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                        <span style="color:#718096;">~</span>
+                        <input type="time" id="setChatEndTime" value="18:00" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                        <label style="margin-left:12px;font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                            <input type="checkbox" id="set24Hours" onchange="if(this.checked){document.getElementById('setChatStartTime').value='00:00';document.getElementById('setChatEndTime').value='23:59';}"> 24시간
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 상담매니저 사용 -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-body padded">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:15px;font-weight:600;color:#1a202c;margin-bottom:4px;">AI 상담매니저 사용</div>
+                            <div style="font-size:12px;color:#718096;">비활성화하면 AI 자동 답변이 중지되고, 관리자가 직접 답변합니다.</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:50px;height:26px;">
+                            <input type="checkbox" id="setAiAutoReply" style="opacity:0;width:0;height:0;">
+                            <span class="tog-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveChatSettings()">설정 저장</button>
+        </div>
+
+        <!-- ====== CUSTOMERS ====== -->
+        <div class="page" id="page-customers">
+            <h2 class="page-title">고객정보</h2>
+            <p style="font-size:12px;color:#718096;margin-bottom:16px;">채팅에서 AI 요약으로 저장된 고객 정보를 확인할 수 있습니다.</p>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>고객 목록</h3>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="date" id="custDateFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;" onchange="loadCustomers(1)">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>고객명</th><th>감정</th><th>주제</th><th>최근 메시지</th><th>메시지</th><th>날짜</th><th>상세</th></tr></thead>
+                        <tbody id="customersBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="customersPagination"></div>
+            </div>
+
+            <!-- 고객 상세 카드 -->
+            <div class="card" style="margin-top:20px;display:none;" id="custDetailCard">
+                <div class="card-header">
+                    <h3 id="custDetailTitle">고객 상세 정보</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('custDetailCard').style.display='none'">닫기</button>
+                </div>
+                <div class="card-body" id="custDetailPanel" style="padding:20px;"></div>
+            </div>
+        </div>
+
+        <!-- ====== PROMPTS ====== -->
+        <div class="page" id="page-prompts">
+            <h2 class="page-title">자동응답 메시지</h2>
+            <div class="card">
+                <div class="card-body padded">
+                    <div class="form-group">
+                        <label>응답 프롬프트 (answer_prompt)</label>
+                        <textarea id="promptEditor" rows="16" placeholder="프롬프트를 불러오는 중..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="savePrompt()">프롬프트 저장</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== FAQ ====== -->
+        <div class="page" id="page-faq">
+            <h2 class="page-title">자주 쓰는 답변</h2>
+            <div class="card">
+                <div class="card-header">
+                    <h3>FAQ 목록</h3>
+                    <button class="btn btn-primary" onclick="openFaqModal()">+ 추가</button>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>제목</th><th>카테고리</th><th>내용 미리보기</th><th style="width:120px;">작업</th></tr></thead>
+                        <tbody id="faqBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== GROUPS ====== -->
+        <div class="page" id="page-groups">
+            <h2 class="page-title">채팅방 라벨</h2>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <h3>그룹 목록</h3>
+                    <button class="btn btn-primary" onclick="openGroupModal()">+ 그룹 추가</button>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>이름</th><th>설명</th><th>문서 수</th><th style="width:180px;">작업</th></tr></thead>
+                        <tbody id="groupsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card" style="display:none;" id="groupDocsCard">
+                <div class="card-header">
+                    <h3 id="groupDocsTitle">그룹 문서</h3>
+                    <div style="display:flex;gap:8px;">
+                        <select id="groupDocSelect" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;max-width:200px;"></select>
+                        <button class="btn btn-primary btn-sm" onclick="addDocToGroup()">문서 추가</button>
+                        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('groupDocsCard').style.display='none'">닫기</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>문서 ID</th><th>제목</th><th style="width:80px;">작업</th></tr></thead>
+                        <tbody id="groupDocsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== SEARCH TEST ====== -->
+        <div class="page" id="page-search-test">
+            <h2 class="page-title">검색 테스트</h2>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-body padded">
+                    <div class="form-group">
+                        <label>검색 쿼리</label>
+                        <input type="text" id="searchQuery" placeholder="검색할 내용을 입력하세요..." onkeydown="if(event.key==='Enter')runSearchTest()">
+                    </div>
+                    <div class="form-group">
+                        <label>Top K</label>
+                        <div class="slider-group">
+                            <input type="range" id="searchTopK" min="1" max="20" step="1" value="5"
+                                   oninput="document.getElementById('searchTopKVal').textContent=this.value">
+                            <span class="slider-value" id="searchTopKVal">5</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runSearchTest()">검색</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>검색 결과</h3></div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>청크 텍스트</th><th>문서 제목</th><th>소스 타입</th><th>청크 인덱스</th></tr></thead>
+                        <tbody id="searchResultsBody">
+                            <tr><td colspan="4" class="empty"><div class="icon">🔍</div><p>검색어를 입력하고 검색 버튼을 클릭하세요.</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== KNOWLEDGE ====== -->
+        <div class="page" id="page-knowledge">
+            <h2 class="page-title">데이터참고</h2>
+
+            <!-- 데이터 입력 가이드 -->
+            <div id="uploadGuide" style="background:linear-gradient(135deg,#f0f4ff,#e8f0fe);border-left:4px solid #4a6cf7;border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:20px;cursor:pointer;" onclick="this.querySelector('.guide-body').style.display=this.querySelector('.guide-body').style.display==='none'?'block':'none'">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong style="font-size:14px;color:#2d3748;">📋 데이터 입력 가이드</strong>
+                    <span style="font-size:12px;color:#718096;">클릭하여 펼치기/접기</span>
+                </div>
+                <div class="guide-body" style="display:none;margin-top:14px;font-size:13px;color:#4a5568;line-height:1.8;">
+                    <p style="font-weight:600;margin-bottom:8px;">효과적인 데이터 입력 방법</p>
+                    <p>✅ <b>FAQ 형태 추천</b> — "Q: 환불은 어떻게 하나요? A: 결제일로부터 7일 이내..." 형태가 검색에 가장 효과적입니다.</p>
+                    <p>✅ <b>주제별 문서 분리</b> — 하나의 파일에 모든 내용을 넣지 마세요. 요금제, 환불, 배송 등 주제별로 나눠서 올리면 정확도가 높아집니다.</p>
+                    <p>✅ <b>자연스러운 문장 사용</b> — "36250, monthly" ❌ → "Starter 플랜의 월간 요금은 36,250원입니다" ⭕</p>
+                    <p>✅ <b>적절한 문서 길이</b> — 200~5,000자가 적당합니다. 너무 짧거나 길면 검색 품질이 떨어집니다.</p>
+                    <p style="margin-top:10px;padding:10px;background:rgba(74,108,247,0.08);border-radius:8px;">ℹ️ SQL/JSON 파일은 <b>자동으로 자연어 변환</b>됩니다. 파일명 제목은 검색에 유리한 제목으로 자동 변경됩니다. 중복 문서는 자동 감지됩니다.</p>
+                </div>
+            </div>
+
+            <!-- 업로드 탭 -->
+            <div class="card" style="margin-bottom:20px;">
+                <div style="display:flex;border-bottom:1px solid #e2e8f0;padding:0 16px;">
+                    <button id="tabText" onclick="switchUploadTab('text')" style="padding:12px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#4a6cf7;border-bottom:2px solid #4a6cf7;">📝 텍스트 입력</button>
+                    <button id="tabFile" onclick="switchUploadTab('file')" style="padding:12px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#a0aec0;border-bottom:2px solid transparent;">📁 파일 업로드</button>
+                </div>
+                <div class="card-body padded">
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:12px;color:#718096;margin-bottom:4px;display:block;">문서 유형</label>
+                        <select id="uploadSourceType" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                            <option value="faq">FAQ</option>
+                            <option value="document">문서/매뉴얼</option>
+                            <option value="file">파일(SQL/JSON/CSV)</option>
+                        </select>
+                    </div>
+
+                    <!-- 텍스트 입력 탭 -->
+                    <div id="uploadTabText">
+                        <p style="font-size:12px;color:#718096;margin-bottom:12px;">💡 FAQ, 정책 문서, 안내문 등을 직접 입력하세요. 질문-답변 형태가 가장 효과적입니다.</p>
+                        <div class="form-group">
+                            <label>제목</label>
+                            <input type="text" id="textTitle" placeholder="예: 환불 정책 안내 (비워두면 자동 생성)">
+                        </div>
+                        <div class="form-group">
+                            <label>내용</label>
+                            <textarea id="textContent" rows="8" placeholder="Q: 환불은 어떻게 하나요?&#10;A: 결제일로부터 7일 이내에 마이페이지에서 환불 신청이 가능합니다.&#10;&#10;Q: 배송은 얼마나 걸리나요?&#10;A: 평일 기준 2~3일 소요됩니다."></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="uploadText()">텍스트 업로드</button>
+                    </div>
+
+                    <!-- 파일 업로드 탭 -->
+                    <div id="uploadTabFile" style="display:none;">
+                        <p style="font-size:12px;color:#718096;margin-bottom:12px;">💡 SQL, JSON, CSV 파일은 자동으로 자연어로 변환됩니다. 여러 파일을 동시에 업로드할 수 있습니다.</p>
+                        <div id="uploadZone" onclick="document.getElementById('fileInput').click()" style="border:2px dashed #cbd5e0;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:12px;" onmouseover="this.style.borderColor='#4a6cf7';this.style.background='#f7faff'" onmouseout="this.style.borderColor='#cbd5e0';this.style.background='transparent'">
+                            <div style="font-size:32px;margin-bottom:8px;">📤</div>
+                            <p style="font-size:14px;color:#4a5568;font-weight:500;">파일을 드래그하거나 클릭하여 업로드</p>
+                            <div style="font-size:12px;color:#a0aec0;margin-top:4px;">.pdf, .docx, .pptx, .xlsx, .sql, .json, .txt, .csv, .md 지원</div>
+                        </div>
+                        <input type="file" id="fileInput" multiple style="display:none" accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.sql,.json,.txt,.csv,.md" onchange="uploadFiles(this.files)">
+                    </div>
+
+                    <!-- 업로드 로딩바 -->
+                    <div id="uploadLoading" style="display:none;margin-top:16px;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                            <div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                                <div id="uploadProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#4a6cf7,#6b8cff);border-radius:3px;transition:width 0.3s;"></div>
+                            </div>
+                            <span id="uploadProgressText" style="font-size:12px;color:#718096;white-space:nowrap;">업로드 중...</span>
+                        </div>
+                        <p id="uploadStatusText" style="font-size:12px;color:#4a5568;">파일을 분석하고 있습니다. 파일 크기에 따라 1~2분 소요될 수 있습니다.</p>
+                    </div>
+                    <!-- 업로드 결과 피드백 -->
+                    <div id="uploadResultArea" style="display:none;margin-top:16px;"></div>
+                </div>
+            </div>
+
+            <!-- 문서 목록 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>문서 목록</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-danger btn-sm" onclick="batchDeleteDocs()">선택 삭제</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAllDocs()">전체 삭제</button>
+                    </div>
+                </div>
+                <div style="padding:12px 16px;border-bottom:1px solid #e8ecf1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <select id="knowledgeTypeFilter" onchange="loadKnowledge(1)" style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                        <option value="">전체 유형</option>
+                        <option value="faq">FAQ</option>
+                        <option value="document">문서/매뉴얼</option>
+                        <option value="file">파일</option>
+                    </select>
+                    <input type="text" id="knowledgeSearchInput" placeholder="제목 검색..." onkeydown="if(event.key==='Enter')loadKnowledge(1)" style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;width:200px;">
+                    <button onclick="loadKnowledge(1)" style="background:#4a6cf7;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">검색</button>
+                    <span id="knowledgeCount" style="font-size:12px;color:#a0aec0;margin-left:auto;"></span>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="docCheckAll" onchange="toggleAllDocs(this)"></th>
+                                <th>ID</th><th>제목</th><th>유형</th><th>청크</th><th>날짜</th><th style="width:150px;">작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="knowledgeBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="knowledgePagination"></div>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ====== FAQ MODAL ====== -->
+<div class="modal-overlay" id="faqModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="faqModalTitle">FAQ 추가</h3>
+            <button class="modal-close" onclick="closeFaqModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="faqEditId">
+            <div class="form-group">
+                <label>제목</label>
+                <input type="text" id="faqTitle" placeholder="FAQ 제목">
+            </div>
+            <div class="form-group">
+                <label>카테고리</label>
+                <input type="text" id="faqCategory" placeholder="카테고리">
+            </div>
+            <div class="form-group">
+                <label>내용</label>
+                <textarea id="faqContent" rows="6" placeholder="FAQ 내용"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFaqModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveFaq()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== GROUP MODAL ====== -->
+<div class="modal-overlay" id="groupModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="groupModalTitle">그룹 추가</h3>
+            <button class="modal-close" onclick="closeGroupModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="groupEditId">
+            <div class="form-group">
+                <label>그룹 이름</label>
+                <input type="text" id="groupName" placeholder="그룹 이름">
+            </div>
+            <div class="form-group">
+                <label>설명</label>
+                <textarea id="groupDesc" rows="3" placeholder="그룹 설명"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeGroupModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveGroup()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== DOC EDIT MODAL ====== -->
+<div class="modal-overlay" id="docEditModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>문서 수정</h3>
+            <button class="modal-close" onclick="closeDocEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="docEditId">
+            <div class="form-group">
+                <label>제목</label>
+                <input type="text" id="docEditTitle">
+            </div>
+            <div class="form-group">
+                <label>소스 타입</label>
+                <select id="docEditType">
+                    <option value="file">파일</option>
+                    <option value="text">텍스트</option>
+                    <option value="web">웹</option>
+                    <option value="api">API</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>내용</label>
+                <textarea id="docEditContent" rows="8"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDocEditModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveDocEdit()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== CHUNK VIEW MODAL ====== -->
+<div class="modal-overlay" id="chunkModal">
+    <div class="modal" style="max-width:700px;">
+        <div class="modal-header">
+            <h3 id="chunkModalTitle">청크 보기</h3>
+            <button class="modal-close" onclick="document.getElementById('chunkModal').classList.remove('open')">&times;</button>
+        </div>
+        <div class="modal-body" id="chunkModalBody" style="max-height:60vh;overflow-y:auto;"></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    /* ============================================================
+       CORE: Auth, API, Router
+       ============================================================ */
+    const TOKEN_KEY = 'admin_token';
+    let currentPage = 'dashboard';
+    let adminUser = null;
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+    async function api(url, opts = {}) {
+        const token = getToken();
+        const headers = opts.headers || {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        if (opts.body && !(opts.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(opts.body);
+        }
+        opts.headers = headers;
+        const resp = await fetch(url, opts);
+        if (resp.status === 401) {
+            localStorage.removeItem(TOKEN_KEY);
+            window.location.href = '/admin/login.html';
+            throw new Error('Unauthorized');
+        }
+        return resp;
+    }
+
+    async function apiJson(url, opts = {}) {
+        const resp = await api(url, opts);
+        return await resp.json();
+    }
+
+    function toast(msg, type = 'success') {
+        const el = document.createElement('div');
+        el.className = 'toast ' + type;
+        el.textContent = msg;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+
+    function navigate(page) {
+        window.location.hash = page;
+    }
+
+    function handleRoute() {
+        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        currentPage = hash;
+
+        // 다른 페이지로 이동 시 정리
+        if (hash !== 'chats') {
+            disconnectAdminWatchWs();
+            disconnectAdminChatWs();
+            stopChatDetailPoll();
+            stopChatAutoRefresh();
+        }
+
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const pageEl = document.getElementById('page-' + hash);
+        if (pageEl) pageEl.classList.add('active');
+
+        document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.toggle('active', n.dataset.page === hash);
+        });
+
+        // Close mobile sidebar
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
+
+        // Load page data
+        loadPageData(hash);
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function logout() {
+        localStorage.removeItem(TOKEN_KEY);
+        window.location.href = '/admin/login.html';
+    }
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    (async function init() {
+        try {
+            const resp = await api('/api/auth/me');
+            if (!resp.ok) throw new Error();
+            const data = await resp.json();
+            adminUser = data;
+            localStorage.setItem('admin_info', JSON.stringify(data));
+            document.getElementById('adminName').textContent = data.username || '관리자';
+        } catch(e) {
+            window.location.href = '/admin/login.html';
+            return;
+        }
+
+        marked.setOptions({ breaks: true, gfm: true });
+        window.addEventListener('hashchange', handleRoute);
+        handleRoute();
+    })();
+
+    /* ============================================================
+       PAGE DATA LOADERS
+       ============================================================ */
+    function loadPageData(page) {
+        switch(page) {
+            case 'dashboard': loadDashboard(); break;
+            case 'chats': loadChats(1); startChatAutoRefresh(); break;
+            case 'chat-settings': loadChatSettings(); break;
+            case 'customers': loadCustomers(1); break;
+            case 'prompts': loadPrompts(); break;
+            case 'faq': loadFaqs(); break;
+            case 'groups': loadGroups(); break;
+            case 'knowledge': loadKnowledge(1); break;
+        }
+    }
+
+    /* ── Dashboard ── */
+    function updateChatUrl() {
+        try {
+            const me = JSON.parse(localStorage.getItem('admin_info') || '{}');
+            const tenantSlug = me.tenant_slug || 'default';
+            const base = location.origin;
+            const url = base + '/chat/' + tenantSlug;
+            document.getElementById('chatUrlValue').textContent = url;
+            document.getElementById('chatUrlBox').dataset.url = url;
+        } catch(e) {
+            document.getElementById('chatUrlValue').textContent = location.origin + '/chat/default';
+        }
+    }
+    function copyChatUrl() {
+        const url = document.getElementById('chatUrlBox').dataset.url || document.getElementById('chatUrlValue').textContent;
+        navigator.clipboard.writeText(url).then(() => toast('채팅 URL이 복사되었습니다.')).catch(() => {});
+    }
+
+    async function loadDashboard() {
+        updateChatUrl();
+        try {
+            const data = await apiJson('/api/stats/dashboard');
+            document.getElementById('statDocs').textContent = (data.total_documents ?? data.documents ?? '-').toLocaleString();
+            document.getElementById('statChunks').textContent = (data.total_chunks ?? data.chunks ?? '-').toLocaleString();
+            document.getElementById('statChats').textContent = (data.today_chats ?? data.today_sessions ?? '-').toLocaleString();
+
+            renderChange('statDocsChange', data.documents_change);
+            renderChange('statChunksChange', data.chunks_change);
+            renderChange('statChatsChange', data.chats_change);
+        } catch(e) {
+            console.error('Dashboard stats failed', e);
+        }
+
+        try {
+            const data = await apiJson('/api/sessions?page=1&page_size=10');
+            const sessions = data.sessions || data.items || [];
+            renderSessionTable('dashSessionsBody', sessions, 'chats');
+        } catch(e) {
+            document.getElementById('dashSessionsBody').innerHTML =
+                '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:24px;">세션 데이터를 불러올 수 없습니다.</td></tr>';
+        }
+    }
+
+    function renderChange(elId, val) {
+        const el = document.getElementById(elId);
+        if (val === undefined || val === null) {
+            el.className = 'change neutral';
+            el.textContent = '-';
+            return;
+        }
+        if (val > 0) { el.className = 'change up'; el.textContent = '▲ ' + val + '%'; }
+        else if (val < 0) { el.className = 'change down'; el.textContent = '▼ ' + Math.abs(val) + '%'; }
+        else { el.className = 'change neutral'; el.textContent = '— 변동 없음'; }
+    }
+
+    function renderSessionTable(tbodyId, sessions, detailTarget) {
+        const tbody = document.getElementById(tbodyId);
+        if (!sessions.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:24px;">세션이 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = sessions.map(s => {
+            const key = s.session_key || s.session_id || s.id || '-';
+            const preview = escapeHtml(truncate(s.first_message || s.preview || '-', 60));
+            const count = s.message_count || s.messages || 0;
+            const date = formatDate(s.created_at || s.date || s.last_active);
+            return `<tr class="clickable" onclick="showSessionDetail('${key}', '${detailTarget}')">
+                <td><code style="font-size:12px;">${escapeHtml(truncate(key, 20))}</code></td>
+                <td class="text-truncate">${preview}</td>
+                <td>${count}</td>
+                <td>${date}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* ── Chats ── */
+    let chatsPage = 1;
+    let activeSessionKey = null;
+    let adminWatchWs = null;
+    let adminChatWs = null;
+    let chatAutoRefreshTimer = null;
+
+    function startChatAutoRefresh() {
+        stopChatAutoRefresh();
+        chatAutoRefreshTimer = setInterval(async () => {
+            const currentPage = (location.hash.replace('#','') || 'dashboard');
+            if (currentPage !== 'chats') { stopChatAutoRefresh(); return; }
+            await loadChats(chatsPage, true);
+            if (activeSessionKey) await refreshChatDetail(activeSessionKey);
+        }, 2000);
+        console.log('[Chat] auto-refresh started (2s interval)');
+    }
+
+    function stopChatAutoRefresh() {
+        if (chatAutoRefreshTimer) { clearInterval(chatAutoRefreshTimer); chatAutoRefreshTimer = null; }
+    }
+    const avatarColors = ['#E8B4B8','#B4D4E8','#B8E8B4','#E8D4B4','#D4B4E8','#B4E8D4','#E8E4B4','#B4B8E8'];
+    const avatarIcons = ['👤','💼','🏢','🔧','📦','🎯','💡','🌟'];
+
+    async function loadChats(page, silent) {
+        chatsPage = page;
+        try {
+            const statusFilter = document.getElementById('chatsFilter')?.value || '';
+            let url = '/api/sessions?page=' + page + '&page_size=20';
+            if (statusFilter) url += '&status=' + statusFilter;
+            const data = await apiJson(url);
+            const sessions = data.sessions || data.items || [];
+            const total = data.total || sessions.length;
+            renderChatList(sessions);
+            if (!silent) renderPagination('chatsPagination', page, Math.ceil(total / 20), loadChats);
+        } catch(e) {
+            if (!silent) document.getElementById('chatListItems').innerHTML =
+                '<div class="chat-empty-state">데이터를 불러올 수 없습니다.</div>';
+        }
+        connectAdminWatchWs();
+    }
+
+    /* ── Admin Watch WebSocket + 폴링 백업 (채팅 목록 실시간 갱신) ── */
+    let chatsPollTimer = null;
+
+    function connectAdminWatchWs() {
+        // 폴링 백업 항상 가동 (3초 간격) - 목록 + 열린 세션 상세 갱신
+        if (!chatsPollTimer) {
+            chatsPollTimer = setInterval(() => {
+                const currentPage = (location.hash.replace('#','') || 'dashboard');
+                if (currentPage === 'chats') {
+                    loadChats(chatsPage, true);
+                    if (activeSessionKey) refreshChatDetail(activeSessionKey);
+                }
+            }, 3000);
+        }
+        // WebSocket도 시도
+        if (adminWatchWs && adminWatchWs.readyState === WebSocket.OPEN) return;
+        if (adminWatchWs) { try { adminWatchWs.close(); } catch(e){} adminWatchWs = null; }
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        adminWatchWs = new WebSocket(`${protocol}//${location.host}/ws/admin-watch`);
+        adminWatchWs.onopen = () => console.log('[AdminWatch] WS connected');
+        adminWatchWs.onmessage = (event) => {
+            console.log('[AdminWatch] received:', event.data);
+            const data = JSON.parse(event.data);
+            if (data.type === 'new_message') {
+                loadChats(chatsPage, true);
+                if (activeSessionKey && data.session_key === activeSessionKey) {
+                    refreshChatDetail(activeSessionKey);
+                }
+                if (!activeSessionKey && data.session_key) {
+                    setTimeout(() => selectChatItemByKey(data.session_key), 500);
+                }
+            }
+            if (data.type === 'unanswered_question') {
+                if (!window._unansweredSessions) window._unansweredSessions = new Set();
+                window._unansweredSessions.add(data.session_key);
+                loadChats(chatsPage, true);
+            }
+        };
+        adminWatchWs.onclose = () => {
+            console.log('[AdminWatch] WS closed, will retry in 2s');
+            adminWatchWs = null;
+            const currentPage = location.hash.replace('#','') || 'dashboard';
+            if (currentPage === 'chats') {
+                setTimeout(connectAdminWatchWs, 2000);
+            }
+        };
+        adminWatchWs.onerror = () => { try { adminWatchWs.close(); } catch(e){} };
+    }
+
+    function disconnectAdminWatchWs() {
+        if (adminWatchWs) { try { adminWatchWs.close(); } catch(e){} adminWatchWs = null; }
+        if (chatsPollTimer) { clearInterval(chatsPollTimer); chatsPollTimer = null; }
+    }
+
+    /* ── Admin Chat WebSocket (선택된 세션 실시간 메시지) ── */
+    function connectAdminChatWs(sessionKey) {
+        disconnectAdminChatWs();
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${location.host}/ws/admin/${sessionKey}`;
+        console.log('[AdminChatWS] connecting to:', wsUrl);
+        adminChatWs = new WebSocket(wsUrl);
+        adminChatWs.onopen = () => {
+            console.log('[AdminChatWS] connected to session:', sessionKey);
+        };
+        adminChatWs.onmessage = (event) => {
+            console.log('[AdminChatWS] received:', event.data);
+            const data = JSON.parse(event.data);
+            if (data.type === 'message') {
+                const panel = document.getElementById('chatDetailPanel');
+                const role = data.role || 'assistant';
+                const content = role === 'assistant' ? marked.parse(data.message || '') : escapeHtml(data.message || '');
+                const time = data.created_at ? new Date(data.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) : '';
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble ' + role;
+                bubble.innerHTML = `${content}<div style="font-size:11px;color:#a0aec0;margin-top:6px;text-align:${role==='user'?'right':'left'}">${time}</div>`;
+                panel.appendChild(bubble);
+                panel.scrollTop = panel.scrollHeight;
+            }
+        };
+        adminChatWs.onclose = (e) => {
+            console.log('[AdminChatWS] closed:', e.code, e.reason);
+            if (activeSessionKey === sessionKey) {
+                setTimeout(() => connectAdminChatWs(sessionKey), 3000);
+            }
+        };
+        adminChatWs.onerror = (e) => {
+            console.error('[AdminChatWS] error:', e);
+            adminChatWs.close();
+        };
+    }
+
+    function disconnectAdminChatWs() {
+        if (adminChatWs) { adminChatWs.close(); adminChatWs = null; }
+    }
+
+    const statusLabels = { active: '상담중', delayed: '상담지연', closed: '상담종료' };
+
+    function renderChatList(sessions) {
+        const container = document.getElementById('chatListItems');
+        if (!sessions.length) {
+            container.innerHTML = '<div class="chat-empty-state">채팅이 없습니다.</div>';
+            return;
+        }
+        if (!window._unansweredSessions) window._unansweredSessions = new Set();
+        container.innerHTML = sessions.map((s, i) => {
+            const key = s.session_key || s.session_id || s.id || '-';
+            const preview = escapeHtml(truncate(s.last_message || s.first_message || s.preview || '메시지 없음', 50));
+            const count = s.message_count || s.messages || 0;
+            const date = formatDate(s.last_message_at || s.created_at || s.date);
+            const isActive = key === activeSessionKey;
+            const colorIdx = i % avatarColors.length;
+            const icon = avatarIcons[i % avatarIcons.length];
+            const displayName = s.user_name || truncate(key, 12);
+            const shortKey = displayName;
+            const st = s.status || 'active';
+            const stLabel = statusLabels[st] || st;
+            const isUnanswered = window._unansweredSessions.has(key);
+            const unansweredStyle = isUnanswered ? 'background:#fff8e1;border-left:3px solid #f59e0b;' : '';
+            return `<div class="chat-item ${isActive ? 'active' : ''}" style="${unansweredStyle}" onclick="selectChatItem('${escapeHtml(key)}', '${st}');window._unansweredSessions.delete('${escapeHtml(key)}');">
+                <div class="chat-item-avatar" style="background:${avatarColors[colorIdx]}">${icon}</div>
+                <div class="chat-item-content">
+                    <div class="chat-item-top">
+                        <span class="chat-item-name">${escapeHtml(shortKey)}</span>
+                        <span class="status-badge ${st}">${stLabel}</span>
+                        ${isUnanswered ? '<span style="background:#f59e0b;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;">답변 필요</span>' : ''}
+                        ${count > 1 ? `<span class="chat-item-badge">${count}</span>` : ''}
+                        <span class="chat-item-time">${date}</span>
+                    </div>
+                    <div class="chat-item-preview">${isUnanswered ? '⚠️ ' : ''}${preview}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    let activeSessionStatus = 'active';
+
+    function selectChatItemByKey(key) {
+        // 목록에서 해당 세션을 찾아 자동 클릭
+        const items = document.querySelectorAll('.chat-item');
+        for (const item of items) {
+            if (item.onclick && item.outerHTML.includes(key.substring(0, 12))) {
+                item.click();
+                return;
+            }
+        }
+        // 목록에 없으면 직접 선택
+        selectChatItem(key, 'active');
+    }
+
+    function selectChatItem(key, status) {
+        activeSessionKey = key;
+        activeSessionStatus = status || 'active';
+        // Highlight active
+        document.querySelectorAll('.chat-item').forEach(el => {
+            el.classList.remove('active');
+            if (el.outerHTML.includes(key.substring(0, 12))) el.classList.add('active');
+        });
+        // 상태 표시 + 버튼
+        const actionsEl = document.getElementById('chatDetailActions');
+        const statusEl = document.getElementById('chatDetailStatus');
+        actionsEl.style.display = 'flex';
+        statusEl.textContent = statusLabels[activeSessionStatus] || activeSessionStatus;
+        statusEl.className = 'status-label ' + activeSessionStatus;
+        // 상담종료 상태면 입력창/종료 버튼 숨기기
+        document.getElementById('adminReplyArea').style.display = (activeSessionStatus === 'closed') ? 'none' : 'block';
+        document.querySelector('.btn-close-chat').style.display = (activeSessionStatus === 'closed') ? 'none' : '';
+
+        showSessionDetail(key, 'chats');
+        // 세션별 AI 토글 로드
+        loadSessionAiToggle();
+        // 고객정보 패널 닫기
+        document.getElementById('customerInfoPanel').style.display = 'none';
+    }
+
+    async function closeSession() {
+        if (!activeSessionKey) return;
+        if (!confirm('이 상담을 종료하시겠습니까?')) return;
+        try {
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/status', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: { status: 'closed' },
+            });
+            toast('상담이 종료되었습니다.', 'success');
+            activeSessionStatus = 'closed';
+            document.getElementById('chatDetailStatus').textContent = '상담종료';
+            document.getElementById('chatDetailStatus').className = 'status-label closed';
+            document.getElementById('adminReplyArea').style.display = 'none';
+            document.querySelector('.btn-close-chat').style.display = 'none';
+            loadChats(chatsPage, true);
+        } catch(e) {
+            toast('상태 변경에 실패했습니다.', 'error');
+        }
+    }
+
+    async function deleteSession() {
+        if (!activeSessionKey) return;
+        if (!confirm('이 채팅방을 나가시겠습니까?\n세션과 모든 대화 내용이 삭제됩니다.')) return;
+        try {
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey), {
+                method: 'DELETE',
+            });
+            toast('채팅방에서 나갔습니다.', 'success');
+            disconnectAdminChatWs();
+            activeSessionKey = null;
+            document.getElementById('chatDetailActions').style.display = 'none';
+            document.getElementById('chatDetailTitle').textContent = '대화를 선택하세요';
+            document.getElementById('chatDetailMeta').textContent = '';
+            document.getElementById('chatDetailPanel').innerHTML = '<div class="chat-empty-state">💬<br>왼쪽 목록에서 채팅을 선택하면<br>대화 내용이 여기에 표시됩니다.</div>';
+            document.getElementById('adminReplyArea').style.display = 'none';
+            loadChats(chatsPage);
+        } catch(e) {
+            toast('삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    var _lastAdminReplyQuestion = '';  // 마지막 사용자 질문 저장
+
+    async function sendAdminReply() {
+        if (!activeSessionKey) return;
+        const input = document.getElementById('adminReplyInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // 미답변 체크용 (전송 전에 확인)
+        var hadUnanswered = _hasUnansweredAiMessage();
+        var lastQ = hadUnanswered ? _getLastUserQuestion() : '';
+
+        const btn = document.querySelector('.admin-reply-btn');
+        btn.disabled = true;
+        try {
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/reply', {
+                method: 'POST',
+                body: { message: text },
+            });
+            input.value = '';
+            input.style.height = 'auto';
+
+            // 즉시 화면에 메시지 추가 (API 재호출 없이)
+            _appendBubble('assistant', text, true);
+
+            // 미답변이었으면 FAQ 등록 제안
+            if (hadUnanswered && lastQ) {
+                showFaqRegisterPrompt(lastQ, text);
+                if (window._unansweredSessions) window._unansweredSessions.delete(activeSessionKey);
+                loadChats(chatsPage, true);
+            }
+        } catch(e) {
+            toast('전송에 실패했습니다.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function toggleCustomerInfo() {
+        const panel = document.getElementById('customerInfoPanel');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            loadCustomerInfo();
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    async function loadCustomerInfo() {
+        if (!activeSessionKey) return;
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info');
+            var el = document.getElementById('customerInfoContent');
+            var info = data.customer_info;
+            var name = data.user_name;
+
+            if (!info && !name) {
+                el.innerHTML = '<div style="color:#a0aec0;text-align:center;padding:20px;">고객 정보가 없습니다. "AI 요약" 버튼을 눌러 대화를 분석하세요.</div>';
+                return;
+            }
+
+            var cs = 'background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;';
+            var hs = 'font-size:12px;font-weight:700;color:#6b7280;margin-bottom:10px;';
+            var fs = 'font-size:13px;margin-bottom:6px;display:flex;gap:8px;';
+            var lb = 'color:#a0aec0;min-width:70px;font-size:12px;';
+            var vl = 'flex:1;';
+            var inp = 'width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none;';
+            var html = '';
+
+            if (!info) info = {};
+
+            // 1. 업무 플로우 판단
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">📋 업무 플로우 판단</div>';
+            html += '<div style="display:flex;gap:12px;">';
+            html += '<div style="flex:1;"><div style="font-size:11px;color:#a0aec0;margin-bottom:4px;">진행 상태</div>';
+            html += '<select id="ciWorkflowStatus" style="' + inp + '">';
+            var statuses = ['신규 접수','진행중','완료','보류'];
+            for (var st of statuses) html += '<option value="' + st + '"' + (info.workflow_status === st ? ' selected' : '') + '>' + st + '</option>';
+            html += '</select></div>';
+            html += '<div style="flex:1;"><div style="font-size:11px;color:#a0aec0;margin-bottom:4px;">담당자 (부서)</div>';
+            html += '<input type="text" id="ciAssignee" value="' + escapeHtml(info.workflow_assignee || '') + '" placeholder="예: 기술지원팀 김철수" style="' + inp + '"></div>';
+            html += '</div></div>';
+
+            // 2. 기본 고객 정보
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">🏢 기본 고객 정보</div>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+            html += '<div><div style="font-size:11px;color:#a0aec0;margin-bottom:3px;">업체명</div><input type="text" id="ciCompany" value="' + escapeHtml(info.company_name || name || '') + '" style="' + inp + '"></div>';
+            html += '<div><div style="font-size:11px;color:#a0aec0;margin-bottom:3px;">연락처</div><input type="text" id="ciContact" value="' + escapeHtml(info.contact || '') + '" placeholder="전화번호 또는 이메일" style="' + inp + '"></div>';
+            html += '</div>';
+            html += '<div style="margin-top:8px;"><div style="font-size:11px;color:#a0aec0;margin-bottom:3px;">주소</div><input type="text" id="ciAddress" value="' + escapeHtml(info.address || '') + '" placeholder="주소" style="' + inp + '"></div>';
+            html += '<div style="margin-top:8px;"><div style="font-size:11px;color:#a0aec0;margin-bottom:3px;">인증 및 환경</div><input type="text" id="ciExtra" value="' + escapeHtml(info.extra_info || '') + '" placeholder="추가 정보" style="' + inp + '"></div>';
+            html += '</div>';
+
+            // 3. 대화 요약 및 핵심 요구사항
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">💬 대화 요약 및 핵심 요구사항</div>';
+            if (info.summary) html += '<div style="font-size:13px;line-height:1.7;background:#f7f8fa;padding:10px 12px;border-radius:8px;">' + escapeHtml(info.summary) + '</div>';
+            else html += '<div style="font-size:12px;color:#a0aec0;">AI 요약을 실행하면 자동으로 채워집니다.</div>';
+            html += '</div>';
+
+            // 4. 제안 마케팅 전략 / 추천 상품
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+            html += '<div style="' + cs + 'background:#eff6ff;border-color:#93c5fd;">';
+            html += '<div style="' + hs + 'color:#1d4ed8;">📣 제안 마케팅 전략</div>';
+            html += '<div style="font-size:12px;line-height:1.7;">' + (info.marketing_suggestion ? escapeHtml(info.marketing_suggestion) : '<span style="color:#a0aec0;">AI 요약 후 표시됩니다.</span>') + '</div>';
+            html += '</div>';
+            html += '<div style="' + cs + 'background:#fef3c7;border-color:#f59e0b;">';
+            html += '<div style="' + hs + 'color:#92400e;">🏷️ 추천 상품/서비스/컨설팅</div>';
+            html += '<div style="font-size:12px;line-height:1.7;">' + (info.product_recommendation ? escapeHtml(info.product_recommendation) : '<span style="color:#a0aec0;">AI 요약 후 표시됩니다.</span>') + '</div>';
+            html += '</div></div>';
+
+            // 5. 메모
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">📝 메모</div>';
+            if (info.memo) html += '<div style="font-size:12px;line-height:1.6;white-space:pre-wrap;margin-bottom:8px;background:#f7f8fa;padding:8px 12px;border-radius:6px;">' + escapeHtml(info.memo) + '</div>';
+            else html += '<div style="font-size:12px;color:#a0aec0;margin-bottom:8px;">아직 등록된 메모가 없습니다.</div>';
+            html += '<div style="display:flex;gap:6px;">';
+            html += '<input type="text" id="ciMemoInput" placeholder="메모를 입력하세요..." style="flex:1;padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;outline:none;">';
+            html += '<button onclick="saveCiMemo()" style="background:#4a6cf7;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:11px;cursor:pointer;">추가</button>';
+            html += '</div></div>';
+
+            // 저장 버튼
+            html += '<div style="text-align:right;margin-top:4px;">';
+            html += '<button onclick="saveCustomerInfoFields()" style="background:#4a6cf7;color:#fff;border:none;padding:8px 24px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💾 고객정보 저장</button>';
+            html += '</div>';
+
+            el.innerHTML = html;
+        } catch(e) {
+            console.error('loadCustomerInfo error:', e);
+        }
+    }
+
+    async function saveCustomerInfoFields() {
+        if (!activeSessionKey) return;
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info');
+            var info = data.customer_info || {};
+
+            info.workflow_status = document.getElementById('ciWorkflowStatus')?.value || '';
+            info.workflow_assignee = document.getElementById('ciAssignee')?.value?.trim() || '';
+            info.company_name = document.getElementById('ciCompany')?.value?.trim() || '';
+            info.contact = document.getElementById('ciContact')?.value?.trim() || '';
+            info.address = document.getElementById('ciAddress')?.value?.trim() || '';
+            info.extra_info = document.getElementById('ciExtra')?.value?.trim() || '';
+
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info', {
+                method: 'PUT', body: { customer_info: info }
+            });
+            toast('고객정보가 저장되었습니다.');
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    async function saveCiMemo() {
+        if (!activeSessionKey) return;
+        var memo = document.getElementById('ciMemoInput')?.value?.trim();
+        if (!memo) return;
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info');
+            var info = data.customer_info || {};
+            info.memo = (info.memo ? info.memo + '\n' : '') + '[' + new Date().toLocaleString('ko-KR') + '] ' + memo;
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info', {
+                method: 'PUT', body: { customer_info: info }
+            });
+            toast('메모가 저장되었습니다.');
+            loadCustomerInfo();
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    async function summarizeCustomer() {
+        if (!activeSessionKey) return;
+        const el = document.getElementById('customerInfoContent');
+        el.innerHTML = '<div style="color:#718096;">🔄 AI가 대화를 분석 중입니다...</div>';
+        try {
+            const data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/summarize', { method: 'POST' });
+            if (data.error) {
+                el.innerHTML = '<div style="color:#e53e3e;">' + escapeHtml(data.error) + '</div>';
+            } else {
+                toast('고객 정보가 생성되었습니다.');
+                loadCustomerInfo();
+            }
+        } catch(e) {
+            el.innerHTML = '<div style="color:#e53e3e;">요약 생성에 실패했습니다.</div>';
+        }
+    }
+
+    async function loadSessionAiToggle() {
+        // 세션별 AI 설정 로드. 없으면 글로벌 설정 따름
+        var toggle = document.getElementById('sessionAiToggle');
+        var label = document.getElementById('sessionAiLabel');
+        if (!toggle || !activeSessionKey) return;
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info');
+            var info = data.customer_info || {};
+            if (info.ai_auto_reply === 'false') {
+                toggle.checked = false;
+                label.textContent = 'AI 꺼짐 (관리자 직접 답변)';
+                label.style.color = '#e53e3e';
+            } else if (info.ai_auto_reply === 'true') {
+                toggle.checked = true;
+                label.textContent = 'AI 자동답변 켜짐';
+                label.style.color = '#48bb78';
+            } else {
+                // 글로벌 설정 따름
+                var settings = await apiJson('/api/settings');
+                var s = settings.settings || {};
+                var globalAi = s.ai_auto_reply !== 'false';
+                toggle.checked = globalAi;
+                label.textContent = 'AI 자동답변' + (globalAi ? ' (전체 설정: 켜짐)' : ' (전체 설정: 꺼짐)');
+                label.style.color = '#718096';
+            }
+        } catch(e) {
+            toggle.checked = true;
+            label.textContent = 'AI 자동답변';
+        }
+    }
+
+    async function toggleSessionAi(el) {
+        if (!activeSessionKey) return;
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info');
+            var info = data.customer_info || {};
+            info.ai_auto_reply = el.checked ? 'true' : 'false';
+            await apiJson('/api/sessions/' + encodeURIComponent(activeSessionKey) + '/customer-info', {
+                method: 'PUT', body: { customer_info: info }
+            });
+            var label = document.getElementById('sessionAiLabel');
+            if (el.checked) {
+                label.textContent = 'AI 자동답변 켜짐';
+                label.style.color = '#48bb78';
+                toast('이 채팅방 AI 자동답변이 켜졌습니다.');
+            } else {
+                label.textContent = 'AI 꺼짐 (관리자 직접 답변)';
+                label.style.color = '#e53e3e';
+                toast('이 채팅방 AI 자동답변이 꺼졌습니다.');
+            }
+        } catch(e) { toast('설정 변경에 실패했습니다.', 'error'); }
+    }
+
+    function _appendBubble(role, content, isAdmin) {
+        const panel = document.getElementById('chatDetailPanel');
+        if (!panel) return;
+        const time = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+        const rendered = role === 'assistant' ? marked.parse(content) : escapeHtml(content);
+        const adminTag = isAdmin ? ' · 관리자' : '';
+        const div = document.createElement('div');
+        div.className = 'chat-bubble ' + role;
+        div.innerHTML = rendered + `<div style="font-size:11px;color:#a0aec0;margin-top:6px;text-align:${role==='user'?'right':'left'}">${time}${adminTag}</div>`;
+        div.style.animation = 'fadeIn 0.2s ease-out';
+        panel.appendChild(div);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function _getLastUserQuestion() {
+        // chatDetailPanel 내 chat-bubble.user 에서 마지막 사용자 메시지 추출
+        const panel = document.getElementById('chatDetailPanel');
+        if (!panel) return '';
+        const bubbles = panel.querySelectorAll('.chat-bubble.user');
+        if (!bubbles.length) return '';
+        return bubbles[bubbles.length - 1].textContent.trim();
+    }
+
+    function _hasUnansweredAiMessage() {
+        // chatDetailPanel 내 chat-bubble.assistant 에서 미답변 감지
+        const panel = document.getElementById('chatDetailPanel');
+        if (!panel) return false;
+        const bubbles = panel.querySelectorAll('.chat-bubble.assistant');
+        const unable = ['답변을 찾을 수 없습니다', '담당자에게 문의가 전달', '담당자에게 전달되었습니다',
+                        '확인되지 않습니다', '포함되어 있지 않습니다', '정확한 답변을 찾을 수 없'];
+        for (const b of bubbles) {
+            const text = b.textContent;
+            if (unable.some(p => text.includes(p))) return true;
+        }
+        return false;
+    }
+
+    function showFaqRegisterPrompt(question, answer) {
+        const area = document.getElementById('faqRegisterPrompt');
+        if (!area) {
+            // FAQ 등록 프롬프트 동적 생성
+            const div = document.createElement('div');
+            div.id = 'faqRegisterPrompt';
+            div.style.cssText = 'background:#fff8e1;border:1px solid #f59e0b;border-radius:10px;padding:14px 18px;margin:12px 0;';
+            document.getElementById('adminReplyArea').after(div);
+        }
+        const el = document.getElementById('faqRegisterPrompt');
+        el.innerHTML = `
+            <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px;">💡 이 답변을 FAQ로 등록하시겠습니까?</div>
+            <div style="font-size:12px;color:#78716c;margin-bottom:6px;">등록하면 다음에 같은 질문이 들어올 때 AI가 자동 답변합니다.</div>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;">
+                <div style="margin-bottom:6px;"><b>Q:</b> <span id="faqQ">${escapeHtml(question)}</span></div>
+                <div><b>A:</b> <span id="faqA">${escapeHtml(answer)}</span></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="registerFaq()" style="background:#4a6cf7;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;">FAQ 등록</button>
+                <button onclick="editAndRegisterFaq()" style="background:#fff;color:#4a6cf7;border:1px solid #4a6cf7;padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;">수정 후 등록</button>
+                <button onclick="dismissFaqPrompt()" style="background:#f3f4f6;color:#6b7280;border:none;padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;">무시</button>
+            </div>
+        `;
+        el.style.display = 'block';
+    }
+
+    async function registerFaq() {
+        const q = document.getElementById('faqQ')?.textContent || '';
+        const a = document.getElementById('faqA')?.textContent || '';
+        if (!q || !a) return;
+
+        try {
+            await apiJson('/api/ingest/text', {
+                method: 'POST',
+                body: {
+                    title: 'FAQ: ' + q.substring(0, 50),
+                    content: 'Q: ' + q + '\nA: ' + a,
+                    source_type: 'faq',
+                }
+            });
+            toast('FAQ가 등록되었습니다. 다음부터 AI가 자동 답변합니다.');
+            dismissFaqPrompt();
+        } catch(e) {
+            toast('FAQ 등록에 실패했습니다.', 'error');
+        }
+    }
+
+    function editAndRegisterFaq() {
+        const q = document.getElementById('faqQ')?.textContent || '';
+        const a = document.getElementById('faqA')?.textContent || '';
+        const el = document.getElementById('faqRegisterPrompt');
+        el.innerHTML = `
+            <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px;">✏️ FAQ 내용을 수정하세요</div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="font-size:11px;">질문</label>
+                <input type="text" id="faqEditQ" value="${escapeHtml(q)}" style="font-size:12px;padding:6px 10px;">
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label style="font-size:11px;">답변</label>
+                <textarea id="faqEditA" rows="3" style="font-size:12px;padding:6px 10px;">${escapeHtml(a)}</textarea>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="submitEditedFaq()" style="background:#4a6cf7;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;">등록</button>
+                <button onclick="dismissFaqPrompt()" style="background:#f3f4f6;color:#6b7280;border:none;padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;">취소</button>
+            </div>
+        `;
+    }
+
+    async function submitEditedFaq() {
+        const q = document.getElementById('faqEditQ')?.value?.trim() || '';
+        const a = document.getElementById('faqEditA')?.value?.trim() || '';
+        if (!q || !a) { toast('질문과 답변을 입력하세요.', 'error'); return; }
+
+        try {
+            await apiJson('/api/ingest/text', {
+                method: 'POST',
+                body: {
+                    title: 'FAQ: ' + q.substring(0, 50),
+                    content: 'Q: ' + q + '\nA: ' + a,
+                    source_type: 'faq',
+                }
+            });
+            toast('FAQ가 등록되었습니다. 다음부터 AI가 자동 답변합니다.');
+            dismissFaqPrompt();
+        } catch(e) {
+            toast('FAQ 등록에 실패했습니다.', 'error');
+        }
+    }
+
+    function dismissFaqPrompt() {
+        const el = document.getElementById('faqRegisterPrompt');
+        if (el) el.style.display = 'none';
+    }
+
+    /* ── Customers ── */
+    let custPage = 1;
+    async function loadCustomers(page) {
+        custPage = page;
+        try {
+            var url = '/api/sessions?page=' + page + '&page_size=20&has_customer_info=true';
+            var dateVal = document.getElementById('custDateFilter').value;
+            if (dateVal) url += '&date=' + dateVal;
+            var data = await apiJson(url);
+            var sessions = data.sessions || data.items || [];
+            var total = data.total || sessions.length;
+
+            var tbody = document.getElementById('customersBody');
+            if (!sessions.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">고객 정보가 없습니다.</td></tr>';
+                return;
+            }
+
+            // 각 세션의 고객정보를 병렬 로드
+            var rows = [];
+            for (var s of sessions) {
+                var key = s.session_key || '';
+                var name = s.user_name || truncate(key, 12);
+                var lastMsg = escapeHtml(truncate(s.last_message || s.first_message || '-', 30));
+                var count = s.message_count || 0;
+                var date = formatDate(s.last_message_at || s.created_at);
+
+                // customer_info는 별도 API로 로드하면 느리니까 세션 데이터에서 간단히 표시
+                var sentBadge = '<span style="color:#a0aec0;font-size:11px;">-</span>';
+                var topicBadges = '<span style="color:#a0aec0;font-size:11px;">-</span>';
+
+                rows.push('<tr>' +
+                    '<td style="font-weight:600;">' + escapeHtml(name) + '</td>' +
+                    '<td>' + sentBadge + '</td>' +
+                    '<td>' + topicBadges + '</td>' +
+                    '<td style="font-size:12px;color:#718096;">' + lastMsg + '</td>' +
+                    '<td>' + count + '</td>' +
+                    '<td style="font-size:12px;color:#a0aec0;">' + date + '</td>' +
+                    '<td><button onclick="showCustomerDetail(\'' + escapeHtml(key) + '\')" style="background:#4a6cf7;color:#fff;border:none;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">상세</button></td>' +
+                    '</tr>');
+            }
+            tbody.innerHTML = rows.join('');
+
+            // 비동기로 고객정보 로드하여 감정/주제 업데이트
+            for (var i = 0; i < sessions.length; i++) {
+                (function(idx, skey) {
+                    apiJson('/api/sessions/' + encodeURIComponent(skey) + '/customer-info').then(function(d) {
+                        var row = tbody.rows[idx];
+                        if (!row || !d.customer_info) return;
+                        var info = d.customer_info;
+                        if (info.sentiment) {
+                            var sc = info.sentiment === '긍정' ? '#c6f6d5;color:#276749' : info.sentiment === '부정' ? '#fed7d7;color:#9b2c2c' : '#e2e8f0;color:#4a5568';
+                            row.cells[1].innerHTML = '<span style="background:' + sc + ';padding:2px 8px;border-radius:10px;font-size:11px;">' + escapeHtml(info.sentiment) + '</span>';
+                        }
+                        if (info.topics && info.topics.length) {
+                            row.cells[2].innerHTML = info.topics.slice(0, 3).map(function(t) { return '<span style="background:#e2e8f0;padding:2px 6px;border-radius:8px;font-size:10px;margin-right:3px;">' + escapeHtml(t) + '</span>'; }).join('');
+                        }
+                    }).catch(function() {});
+                })(i, sessions[i].session_key);
+            }
+
+            renderPagination('customersPagination', page, Math.ceil(total / 20), loadCustomers);
+        } catch(e) {
+            document.getElementById('customersBody').innerHTML =
+                '<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">데이터를 불러올 수 없습니다.</td></tr>';
+        }
+    }
+
+    async function showCustomerDetail(sessionKey) {
+        var card = document.getElementById('custDetailCard');
+        var panel = document.getElementById('custDetailPanel');
+        card.style.display = 'block';
+        document.getElementById('custDetailTitle').textContent = '고객 상세 정보';
+        panel.innerHTML = '<div style="text-align:center;padding:20px;color:#a0aec0;">불러오는 중...</div>';
+
+        try {
+            var data = await apiJson('/api/sessions/' + encodeURIComponent(sessionKey) + '/customer-info');
+            var info = data.customer_info || {};
+            var name = data.user_name;
+
+            var cs = 'background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;';
+            var hs = 'font-size:12px;font-weight:700;color:#6b7280;margin-bottom:8px;';
+            var html = '';
+
+            // 업무 플로우
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">📋 업무 플로우 판단</div>';
+            html += '<div style="display:flex;gap:20px;font-size:13px;">';
+            html += '<div><span style="color:#a0aec0;">진행 상태:</span> <b>' + escapeHtml(info.workflow_status || '신규 접수') + '</b></div>';
+            html += '<div><span style="color:#a0aec0;">담당자:</span> ' + escapeHtml(info.workflow_assignee || '-') + '</div>';
+            html += '</div></div>';
+
+            // 기본 고객 정보
+            html += '<div style="' + cs + '">';
+            html += '<div style="' + hs + '">🏢 기본 고객 정보</div>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+            html += '<div><span style="color:#a0aec0;">업체명:</span> ' + escapeHtml(info.company_name || name || '-') + '</div>';
+            html += '<div><span style="color:#a0aec0;">연락처:</span> ' + escapeHtml(info.contact || '-') + '</div>';
+            html += '<div><span style="color:#a0aec0;">주소:</span> ' + escapeHtml(info.address || '-') + '</div>';
+            html += '<div><span style="color:#a0aec0;">인증/환경:</span> ' + escapeHtml(info.extra_info || '-') + '</div>';
+            html += '</div></div>';
+
+            // 대화 요약
+            if (info.summary) {
+                html += '<div style="' + cs + '"><div style="' + hs + '">💬 대화 요약 및 핵심 요구사항</div>';
+                html += '<div style="font-size:13px;line-height:1.7;">' + escapeHtml(info.summary) + '</div></div>';
+            }
+
+            // 마케팅 + 추천
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+            html += '<div style="' + cs + 'background:#eff6ff;border-color:#93c5fd;"><div style="' + hs + 'color:#1d4ed8;">📣 제안 마케팅 전략</div>';
+            html += '<div style="font-size:12px;line-height:1.7;">' + escapeHtml(info.marketing_suggestion || '-') + '</div></div>';
+            html += '<div style="' + cs + 'background:#fef3c7;border-color:#f59e0b;"><div style="' + hs + 'color:#92400e;">🏷️ 추천 상품/서비스/컨설팅</div>';
+            html += '<div style="font-size:12px;line-height:1.7;">' + escapeHtml(info.product_recommendation || '-') + '</div></div>';
+            html += '</div>';
+
+            // 메모
+            if (info.memo) {
+                html += '<div style="' + cs + '"><div style="' + hs + '">📝 메모</div>';
+                html += '<div style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + escapeHtml(info.memo) + '</div></div>';
+            }
+
+            panel.innerHTML = html;
+            card.scrollIntoView({ behavior: 'smooth' });
+        } catch(e) {
+            panel.innerHTML = '<div style="text-align:center;padding:20px;color:#e53e3e;">고객 정보를 불러올 수 없습니다.</div>';
+        }
+    }
+
+    /* ── Session Detail (폴링 기반 실시간 갱신) ── */
+    let chatDetailPollTimer = null;
+    let lastMessageCount = 0;
+
+    function stopChatDetailPoll() {
+        if (chatDetailPollTimer) { clearInterval(chatDetailPollTimer); chatDetailPollTimer = null; }
+    }
+
+    function startChatDetailPoll(key) {
+        stopChatDetailPoll();
+        chatDetailPollTimer = setInterval(() => {
+            if (activeSessionKey === key) {
+                refreshChatDetail(key);
+            } else {
+                stopChatDetailPoll();
+            }
+        }, 3000);
+    }
+
+    async function refreshChatDetail(key) {
+        try {
+            const data = await apiJson('/api/sessions/' + encodeURIComponent(key) + '/messages');
+            const messages = data.messages || [];
+            if (messages.length === lastMessageCount) return; // 변경 없으면 스킵
+            lastMessageCount = messages.length;
+            const panelId = 'chatDetailPanel';
+            const metaId = 'chatDetailMeta';
+            if (document.getElementById(metaId)) {
+                document.getElementById(metaId).textContent = `메시지 ${messages.length}개 · ${data.created_at ? formatDate(data.created_at) : ''}`;
+            }
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            const wasAtBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 50;
+            panel.innerHTML = messages.map(m => {
+                const role = m.role || (m.is_user ? 'user' : 'assistant');
+                const content = m.content || m.message || m.text || '';
+                const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) : '';
+                const rendered = role === 'assistant' ? marked.parse(content) : escapeHtml(content);
+                const adminTag = (m.retrieval_meta && m.retrieval_meta.source === 'admin') ? ' · 관리자' : '';
+                return `<div class="chat-bubble ${role}">
+                    ${rendered}
+                    <div style="font-size:11px;color:#a0aec0;margin-top:6px;text-align:${role==='user'?'right':'left'}">${time}${adminTag}</div>
+                </div>`;
+            }).join('');
+            if (wasAtBottom) panel.scrollTop = panel.scrollHeight;
+        } catch(e) { /* ignore poll errors */ }
+    }
+
+    async function showSessionDetail(key, target) {
+        const cardId = target === 'customers' ? 'custDetailCard' : 'chatDetailCard';
+        const panelId = target === 'customers' ? 'custDetailPanel' : 'chatDetailPanel';
+        const titleId = target === 'customers' ? 'custDetailTitle' : 'chatDetailTitle';
+        const metaId = 'chatDetailMeta';
+
+        lastMessageCount = 0;
+        document.getElementById(titleId).textContent = truncate(key, 30);
+        document.getElementById(panelId).innerHTML = '<div style="text-align:center;padding:20px;color:#a0aec0;">불러오는 중...</div>';
+        if (target === 'customers') document.getElementById(cardId).style.display = 'block';
+        if (document.getElementById(metaId)) document.getElementById(metaId).textContent = '';
+        const replyArea = document.getElementById('adminReplyArea');
+        if (replyArea) replyArea.style.display = (target === 'chats') ? 'block' : 'none';
+
+        // WebSocket 시도 (되면 보너스)
+        if (target === 'chats') connectAdminChatWs(key);
+        // 폴링으로 확실하게 실시간 갱신
+        if (target === 'chats') startChatDetailPoll(key);
+
+        try {
+            const data = await apiJson('/api/sessions/' + encodeURIComponent(key) + '/messages');
+            const messages = data.messages || data.items || data || [];
+            lastMessageCount = messages.length;
+            if (!messages.length) {
+                document.getElementById(panelId).innerHTML = '<div style="text-align:center;padding:20px;color:#a0aec0;">메시지가 없습니다.</div>';
+                return;
+            }
+            if (document.getElementById(metaId)) {
+                document.getElementById(metaId).textContent = `메시지 ${messages.length}개 · ${data.created_at ? formatDate(data.created_at) : ''}`;
+            }
+            document.getElementById(panelId).innerHTML = messages.map(m => {
+                const role = m.role || (m.is_user ? 'user' : 'assistant');
+                const content = m.content || m.message || m.text || '';
+                const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) : '';
+                const rendered = role === 'assistant' ? marked.parse(content) : escapeHtml(content);
+                const adminTag = (m.retrieval_meta && m.retrieval_meta.source === 'admin') ? ' · 관리자' : '';
+                return `<div class="chat-bubble ${role}">
+                    ${rendered}
+                    <div style="font-size:11px;color:#a0aec0;margin-top:6px;text-align:${role==='user'?'right':'left'}">${time}${adminTag}</div>
+                </div>`;
+            }).join('');
+            document.getElementById(panelId).scrollTop = document.getElementById(panelId).scrollHeight;
+        } catch(e) {
+            document.getElementById(panelId).innerHTML = '<div style="text-align:center;padding:20px;color:#e53e3e;">대화를 불러올 수 없습니다.</div>';
+        }
+    }
+
+    /* ── Chat Settings ── */
+    async function loadChatSettings() {
+        try {
+            const data = await apiJson('/api/settings');
+            const s = data.settings || data || {};
+            document.getElementById('setChatEnabled').checked = s.chat_enabled !== 'false';
+            document.getElementById('setAiAutoReply').checked = s.ai_auto_reply !== 'false';
+
+            var days;
+            try { days = JSON.parse(s.chat_days || '["mon","tue","wed","thu","fri","sat","sun"]'); } catch(e) { days = ["mon","tue","wed","thu","fri","sat","sun"]; }
+            document.querySelectorAll('.chatDay').forEach(cb => { cb.checked = days.includes(cb.value); });
+
+            document.getElementById('setChatStartTime').value = s.chat_start_time || '00:00';
+            document.getElementById('setChatEndTime').value = s.chat_end_time || '23:59';
+            document.getElementById('set24Hours').checked = (s.chat_start_time === '00:00' && s.chat_end_time === '23:59') || (!s.chat_start_time && !s.chat_end_time);
+        } catch(e) { console.error('loadChatSettings error:', e); }
+    }
+
+    async function saveChatSettings() {
+        var days = [...document.querySelectorAll('.chatDay:checked')].map(cb => cb.value);
+        var settings = [
+            { key: 'chat_enabled', value: document.getElementById('setChatEnabled').checked ? 'true' : 'false' },
+            { key: 'chat_days', value: JSON.stringify(days) },
+            { key: 'chat_start_time', value: document.getElementById('setChatStartTime').value },
+            { key: 'chat_end_time', value: document.getElementById('setChatEndTime').value },
+            { key: 'ai_auto_reply', value: document.getElementById('setAiAutoReply').checked ? 'true' : 'false' },
+        ];
+        try {
+            await api('/api/settings', { method: 'PUT', body: { settings } });
+            toast('설정이 저장되었습니다.');
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    /* ── Prompts ── */
+    async function loadPrompts() {
+        try {
+            const data = await apiJson('/api/settings');
+            const s = data.settings || data || {};
+            document.getElementById('promptEditor').value = s.answer_prompt || s.system_prompt || '';
+        } catch(e) { console.error(e); }
+    }
+
+    async function savePrompt() {
+        const prompt = document.getElementById('promptEditor').value;
+        try {
+            await api('/api/settings', { method: 'PUT', body: { settings: [{ key: 'answer_prompt', value: prompt }] } });
+            toast('프롬프트가 저장되었습니다.');
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    /* ── FAQ ── */
+    async function loadFaqs() {
+        try {
+            const data = await apiJson('/api/faq');
+            const faqs = data.faqs || data.items || [];
+            const tbody = document.getElementById('faqBody');
+            if (!faqs.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="icon">📝</div><p>FAQ가 없습니다.</p></td></tr>';
+                return;
+            }
+            tbody.innerHTML = faqs.map(f => `
+                <tr>
+                    <td>${escapeHtml(f.title || '')}</td>
+                    <td><span class="badge badge-blue">${escapeHtml(f.category || '-')}</span></td>
+                    <td class="text-truncate">${escapeHtml(truncate(f.content || '', 80))}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm" onclick="editFaq(${f.id})">수정</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFaq(${f.id})">삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    function openFaqModal(faq) {
+        document.getElementById('faqEditId').value = faq ? faq.id : '';
+        document.getElementById('faqTitle').value = faq ? faq.title : '';
+        document.getElementById('faqCategory').value = faq ? faq.category : '';
+        document.getElementById('faqContent').value = faq ? faq.content : '';
+        document.getElementById('faqModalTitle').textContent = faq ? 'FAQ 수정' : 'FAQ 추가';
+        document.getElementById('faqModal').classList.add('open');
+    }
+    function closeFaqModal() { document.getElementById('faqModal').classList.remove('open'); }
+
+    async function editFaq(id) {
+        try {
+            const faqsData = await apiJson('/api/faq');
+            const faqs = faqsData.faqs || faqsData.items || [];
+            const faq = faqs.find(f => f.id === id);
+            if (faq) openFaqModal(faq);
+        } catch(e) { toast('FAQ 정보를 불러올 수 없습니다.', 'error'); }
+    }
+
+    async function saveFaq() {
+        const id = document.getElementById('faqEditId').value;
+        const body = {
+            title: document.getElementById('faqTitle').value,
+            category: document.getElementById('faqCategory').value,
+            content: document.getElementById('faqContent').value,
+        };
+        try {
+            if (id) {
+                await api('/api/faq/' + id, { method: 'PUT', body });
+            } else {
+                await api('/api/faq', { method: 'POST', body });
+            }
+            closeFaqModal();
+            toast('FAQ가 저장되었습니다.');
+            loadFaqs();
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    async function deleteFaq(id) {
+        if (!confirm('이 FAQ를 삭제하시겠습니까?')) return;
+        try {
+            await api('/api/faq/' + id, { method: 'DELETE' });
+            toast('FAQ가 삭제되었습니다.');
+            loadFaqs();
+        } catch(e) { console.error('Delete error:', e); toast('삭제에 실패했습니다.', 'error'); }
+    }
+
+    /* ── Groups ── */
+    let allDocuments = [];
+    let currentGroupId = null;
+
+    async function loadGroups() {
+        try {
+            const data = await apiJson('/api/groups');
+            const groups = data.groups || data.items || [];
+            const tbody = document.getElementById('groupsBody');
+            if (!groups.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="icon">🏷️</div><p>그룹이 없습니다.</p></td></tr>';
+                return;
+            }
+            tbody.innerHTML = groups.map(g => `
+                <tr>
+                    <td><strong>${escapeHtml(g.name || '')}</strong></td>
+                    <td>${escapeHtml(g.description || '-')}</td>
+                    <td>${g.document_count || (g.document_ids ? g.document_ids.length : 0)}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm" onclick="showGroupDocs(${g.id}, '${escapeHtml(g.name)}')">문서</button>
+                            <button class="btn btn-secondary btn-sm" onclick="editGroup(${g.id})">수정</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    function openGroupModal(group) {
+        document.getElementById('groupEditId').value = group ? group.id : '';
+        document.getElementById('groupName').value = group ? group.name : '';
+        document.getElementById('groupDesc').value = group ? group.description : '';
+        document.getElementById('groupModalTitle').textContent = group ? '그룹 수정' : '그룹 추가';
+        document.getElementById('groupModal').classList.add('open');
+    }
+    function closeGroupModal() { document.getElementById('groupModal').classList.remove('open'); }
+
+    async function editGroup(id) {
+        try {
+            const data = await apiJson('/api/groups');
+            const groups = data.groups || data.items || [];
+            const group = groups.find(g => g.id === id);
+            if (group) openGroupModal(group);
+        } catch(e) { toast('그룹 정보를 불러올 수 없습니다.', 'error'); }
+    }
+
+    async function saveGroup() {
+        const id = document.getElementById('groupEditId').value;
+        const body = {
+            name: document.getElementById('groupName').value,
+            description: document.getElementById('groupDesc').value,
+        };
+        try {
+            if (id) {
+                await api('/api/groups/' + id, { method: 'PUT', body });
+            } else {
+                body.document_ids = [];
+                await api('/api/groups', { method: 'POST', body });
+            }
+            closeGroupModal();
+            toast('그룹이 저장되었습니다.');
+            loadGroups();
+        } catch(e) { console.error('Save error:', e); toast('저장에 실패했습니다.', 'error'); }
+    }
+
+    async function deleteGroup(id) {
+        if (!confirm('이 그룹을 삭제하시겠습니까?')) return;
+        try {
+            await api('/api/groups/' + id, { method: 'DELETE' });
+            toast('그룹이 삭제되었습니다.');
+            loadGroups();
+        } catch(e) { console.error('Delete error:', e); toast('삭제에 실패했습니다.', 'error'); }
+    }
+
+    async function showGroupDocs(groupId, groupName) {
+        currentGroupId = groupId;
+        document.getElementById('groupDocsTitle').textContent = '그룹 문서 - ' + groupName;
+        document.getElementById('groupDocsCard').style.display = 'block';
+
+        // Load all documents for the selector
+        try {
+            const docData = await apiJson('/api/documents');
+            allDocuments = docData.documents || docData.items || [];
+            const select = document.getElementById('groupDocSelect');
+            select.innerHTML = allDocuments.map(d =>
+                '<option value="' + d.id + '">' + escapeHtml(truncate(d.title || '문서 ' + d.id, 40)) + '</option>'
+            ).join('');
+        } catch(e) {}
+
+        // Load group's documents
+        try {
+            const data = await apiJson('/api/groups');
+            const groups = data.groups || data.items || [];
+            const group = groups.find(g => g.id === groupId);
+            const docIds = group ? (group.document_ids || []) : [];
+            const tbody = document.getElementById('groupDocsBody');
+            if (!docIds.length) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#a0aec0;padding:16px;">문서가 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = docIds.map(did => {
+                const doc = allDocuments.find(d => d.id === did);
+                return `<tr>
+                    <td>${did}</td>
+                    <td>${escapeHtml(doc ? (doc.title || '-') : '-')}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="removeDocFromGroup(${groupId}, ${did})">제거</button></td>
+                </tr>`;
+            }).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    async function addDocToGroup() {
+        const docId = parseInt(document.getElementById('groupDocSelect').value);
+        if (!docId || !currentGroupId) return;
+        try {
+            await api('/api/groups/' + currentGroupId + '/documents', {
+                method: 'POST', body: { document_ids: [docId] }
+            });
+            toast('문서가 추가되었습니다.');
+            const title = document.getElementById('groupDocsTitle').textContent.replace('그룹 문서 - ', '');
+            showGroupDocs(currentGroupId, title);
+            loadGroups();
+        } catch(e) { toast('추가에 실패했습니다.', 'error'); }
+    }
+
+    async function removeDocFromGroup(groupId, docId) {
+        try {
+            await api('/api/groups/' + groupId + '/documents', {
+                method: 'DELETE', body: { document_ids: [docId] }
+            });
+            toast('문서가 제거되었습니다.');
+            const title = document.getElementById('groupDocsTitle').textContent.replace('그룹 문서 - ', '');
+            showGroupDocs(groupId, title);
+            loadGroups();
+        } catch(e) { toast('제거에 실패했습니다.', 'error'); }
+    }
+
+    /* ── Search Test ── */
+    async function runSearchTest() {
+        const query = document.getElementById('searchQuery').value.trim();
+        if (!query) { toast('검색어를 입력하세요.', 'error'); return; }
+        const topK = parseInt(document.getElementById('searchTopK').value);
+        const tbody = document.getElementById('searchResultsBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#a0aec0;">검색 중...</td></tr>';
+
+        try {
+            const data = await apiJson('/api/search/test', {
+                method: 'POST', body: { query, top_k: topK }
+            });
+            const results = data.results || data.chunks || data || [];
+            if (!results.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="icon">🔍</div><p>검색 결과가 없습니다.</p></td></tr>';
+                return;
+            }
+            tbody.innerHTML = results.map((r, i) => `
+                <tr>
+                    <td style="max-width:400px;white-space:pre-wrap;font-size:12px;line-height:1.6;">${escapeHtml(truncate(r.text || r.chunk_text || r.content || '', 300))}</td>
+                    <td>${escapeHtml(r.document_title || r.title || '-')}</td>
+                    <td><span class="badge badge-green">${escapeHtml(r.source_type || r.type || '-')}</span></td>
+                    <td>${r.chunk_index != null ? r.chunk_index : (r.index != null ? r.index : i)}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#e53e3e;">검색에 실패했습니다.</td></tr>';
+        }
+    }
+
+    /* ── Knowledge (Documents) ── */
+    let knowledgePage = 1;
+    async function loadKnowledge(page) {
+        knowledgePage = page;
+        try {
+            var url = '/api/documents?page=' + page + '&page_size=20';
+            var typeFilter = document.getElementById('knowledgeTypeFilter')?.value;
+            var searchQuery = document.getElementById('knowledgeSearchInput')?.value?.trim();
+            if (typeFilter) url += '&source_type=' + encodeURIComponent(typeFilter);
+            if (searchQuery) url += '&search=' + encodeURIComponent(searchQuery);
+            const data = await apiJson(url);
+            const docs = data.documents || data.items || [];
+            const total = data.total || docs.length;
+            const tbody = document.getElementById('knowledgeBody');
+            var countEl = document.getElementById('knowledgeCount');
+            if (countEl) countEl.textContent = '총 ' + total + '건';
+            if (!docs.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty"><div class="icon">📁</div><p>문서가 없습니다.</p></td></tr>';
+                renderPagination('knowledgePagination', 1, 1, loadKnowledge);
+                return;
+            }
+            tbody.innerHTML = docs.map(d => `
+                <tr>
+                    <td><input type="checkbox" class="doc-check" value="${d.id}"></td>
+                    <td>${d.id}</td>
+                    <td class="text-truncate">${escapeHtml(d.title || '-')}</td>
+                    <td><span class="badge badge-green">${escapeHtml(d.source_type || d.type || '-')}</span></td>
+                    <td>${d.chunk_count || d.chunks || '-'}</td>
+                    <td>${formatDate(d.created_at || d.date)}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm" onclick="viewDocChunks(${d.id}, '${escapeHtml(d.title || '')}')">청크</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openDocEdit(${d.id})">수정</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteDoc(${d.id})">삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            renderPagination('knowledgePagination', page, Math.ceil(total / 20), loadKnowledge);
+        } catch(e) { console.error(e); }
+    }
+
+    function toggleAllDocs(checkbox) {
+        document.querySelectorAll('.doc-check').forEach(c => c.checked = checkbox.checked);
+    }
+
+    async function batchDeleteDocs() {
+        const ids = Array.from(document.querySelectorAll('.doc-check:checked')).map(c => parseInt(c.value));
+        if (!ids.length) { toast('삭제할 문서를 선택하세요.', 'error'); return; }
+        if (!confirm(ids.length + '개 문서를 삭제하시겠습니까?')) return;
+        try {
+            await api('/api/documents/batch-delete', { method: 'POST', body: { document_ids: ids } });
+            toast(ids.length + '개 문서가 삭제되었습니다.');
+            loadKnowledge(knowledgePage);
+        } catch(e) { console.error('Delete error:', e); toast('삭제에 실패했습니다.', 'error'); }
+    }
+
+    async function deleteAllDocs() {
+        if (!confirm('정말로 모든 문서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+        if (!confirm('마지막 확인: 모든 문서와 청크가 영구적으로 삭제됩니다.')) return;
+        try {
+            await api('/api/documents/all', { method: 'DELETE' });
+            toast('모든 문서가 삭제되었습니다.');
+            loadKnowledge(1);
+        } catch(e) { console.error('Delete error:', e); toast('삭제에 실패했습니다.', 'error'); }
+    }
+
+    async function deleteDoc(id) {
+        if (!confirm('이 문서를 삭제하시겠습니까?')) return;
+        try {
+            await api('/api/documents/' + id, { method: 'DELETE' });
+            toast('문서가 삭제되었습니다.');
+            loadKnowledge(knowledgePage);
+        } catch(e) { console.error('Delete error:', e); toast('삭제에 실패했습니다.', 'error'); }
+    }
+
+    async function openDocEdit(id) {
+        try {
+            const doc = await apiJson('/api/documents/' + id);
+            document.getElementById('docEditId').value = id;
+            document.getElementById('docEditTitle').value = doc.title || '';
+            document.getElementById('docEditType').value = doc.source_type || doc.type || 'text';
+            document.getElementById('docEditContent').value = doc.content || '';
+            document.getElementById('docEditModal').classList.add('open');
+        } catch(e) { toast('문서 정보를 불러올 수 없습니다.', 'error'); }
+    }
+
+    function closeDocEditModal() { document.getElementById('docEditModal').classList.remove('open'); }
+
+    async function saveDocEdit() {
+        const id = document.getElementById('docEditId').value;
+        try {
+            await api('/api/documents/' + id, {
+                method: 'PUT',
+                body: {
+                    title: document.getElementById('docEditTitle').value,
+                    content: document.getElementById('docEditContent').value,
+                    source_type: document.getElementById('docEditType').value,
+                }
+            });
+            closeDocEditModal();
+            toast('문서가 수정되었습니다.');
+            loadKnowledge(knowledgePage);
+        } catch(e) { toast('수정에 실패했습니다.', 'error'); }
+    }
+
+    async function viewDocChunks(id, title) {
+        document.getElementById('chunkModalTitle').textContent = '청크 보기 - ' + (title || '문서 ' + id);
+        document.getElementById('chunkModalBody').innerHTML = '<div style="text-align:center;padding:20px;color:#a0aec0;">불러오는 중...</div>';
+        document.getElementById('chunkModal').classList.add('open');
+
+        try {
+            const data = await apiJson('/api/documents/' + id + '/chunks');
+            const chunks = data.chunks || data || [];
+            if (!chunks.length) {
+                document.getElementById('chunkModalBody').innerHTML = '<div style="text-align:center;color:#a0aec0;">청크가 없습니다.</div>';
+                return;
+            }
+            document.getElementById('chunkModalBody').innerHTML = chunks.map((c, i) => `
+                <div style="margin-bottom:16px;padding:14px;background:#f7fafc;border-radius:10px;border-left:3px solid #4a6cf7;">
+                    <div style="font-size:11px;color:#718096;margin-bottom:6px;font-weight:600;">청크 #${c.chunk_index != null ? c.chunk_index : i}</div>
+                    <div style="font-size:13px;line-height:1.7;color:#2d3748;white-space:pre-wrap;">${escapeHtml(c.text || c.content || c.chunk_text || '')}</div>
+                </div>
+            `).join('');
+        } catch(e) {
+            document.getElementById('chunkModalBody').innerHTML = '<div style="text-align:center;color:#e53e3e;">청크를 불러올 수 없습니다.</div>';
+        }
+    }
+
+    /* ── File Upload ── */
+    const uploadZone = document.getElementById('uploadZone');
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+    });
+
+    function switchUploadTab(tab) {
+        const textTab = document.getElementById('uploadTabText');
+        const fileTab = document.getElementById('uploadTabFile');
+        const tabTextBtn = document.getElementById('tabText');
+        const tabFileBtn = document.getElementById('tabFile');
+        if (tab === 'text') {
+            textTab.style.display = 'block'; fileTab.style.display = 'none';
+            tabTextBtn.style.color = '#4a6cf7'; tabTextBtn.style.borderBottom = '2px solid #4a6cf7';
+            tabFileBtn.style.color = '#a0aec0'; tabFileBtn.style.borderBottom = '2px solid transparent';
+        } else {
+            textTab.style.display = 'none'; fileTab.style.display = 'block';
+            tabFileBtn.style.color = '#4a6cf7'; tabFileBtn.style.borderBottom = '2px solid #4a6cf7';
+            tabTextBtn.style.color = '#a0aec0'; tabTextBtn.style.borderBottom = '2px solid transparent';
+        }
+        document.getElementById('uploadResultArea').style.display = 'none';
+    }
+
+    function renderUploadResult(results) {
+        const area = document.getElementById('uploadResultArea');
+        if (!results || !results.length) { area.style.display = 'none'; return; }
+        let html = '';
+        for (const r of results) {
+            const score = r.quality_score ?? r.quality_score;
+            const scoreColor = score >= 80 ? '#48bb78' : score >= 50 ? '#ecc94b' : '#fc8181';
+            const scoreLabel = score >= 80 ? '높음' : score >= 50 ? '보통' : '낮음';
+            const formatBadge = r.detected_format && r.detected_format !== 'text'
+                ? '<span style="background:#e2e8f0;color:#4a5568;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:6px;">' + r.detected_format.toUpperCase() + ' → 자연어 변환됨</span>' : '';
+
+            html += '<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;margin-bottom:10px;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+            html += '<strong style="font-size:14px;">' + (r.title || 'Untitled') + '</strong>';
+            if (score !== null && score !== undefined) {
+                html += '<span style="background:' + scoreColor + ';color:#fff;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;">품질 ' + score + '점 (' + scoreLabel + ')</span>';
+            }
+            html += formatBadge;
+            html += '</div>';
+
+            // Issues
+            if (r.quality_issues && r.quality_issues.length) {
+                for (const issue of r.quality_issues) {
+                    const icon = issue.level === 'error' ? '🔴' : '🟡';
+                    html += '<div style="font-size:12px;color:#e53e3e;margin-bottom:2px;">' + icon + ' ' + issue.message + '</div>';
+                }
+            }
+            // Suggestions
+            if (r.quality_suggestions && r.quality_suggestions.length) {
+                for (const s of r.quality_suggestions) {
+                    html += '<div style="font-size:12px;color:#4a6cf7;">💡 ' + s + '</div>';
+                }
+            }
+            html += '<div style="font-size:11px;color:#a0aec0;margin-top:4px;">청크 ' + (r.chunk_count || 0) + '개 생성됨</div>';
+            html += '</div>';
+        }
+        area.innerHTML = html;
+        area.style.display = 'block';
+    }
+
+    let isUploading = false;
+
+    function showUploadLoading(msg) {
+        isUploading = true;
+        document.getElementById('uploadLoading').style.display = 'block';
+        document.getElementById('uploadResultArea').style.display = 'none';
+        document.getElementById('uploadStatusText').textContent = msg || '파일을 분석하고 있습니다...';
+        // 가짜 진행바 애니메이션
+        let progress = 0;
+        const bar = document.getElementById('uploadProgressBar');
+        const pText = document.getElementById('uploadProgressText');
+        window._uploadInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.random() * 8;
+                if (progress > 90) progress = 90;
+                bar.style.width = progress + '%';
+                pText.textContent = Math.round(progress) + '%';
+            }
+        }, 500);
+    }
+
+    function hideUploadLoading(success) {
+        isUploading = false;
+        clearInterval(window._uploadInterval);
+        const bar = document.getElementById('uploadProgressBar');
+        const pText = document.getElementById('uploadProgressText');
+        bar.style.width = '100%';
+        pText.textContent = success ? '완료!' : '실패';
+        setTimeout(() => {
+            document.getElementById('uploadLoading').style.display = 'none';
+            bar.style.width = '0%';
+        }, 1000);
+    }
+
+    async function uploadFiles(files) {
+        if (!files.length || isUploading) return;
+        const formData = new FormData();
+        for (let f of files) formData.append('files', f);
+        formData.append('source_type', document.getElementById('uploadSourceType').value);
+
+        showUploadLoading(files.length + '개 파일 분석 중... SQL/JSON은 자연어 변환에 시간이 걸립니다.');
+        try {
+            const resp = await api('/api/ingest/file', { method: 'POST', body: formData });
+            if (resp.ok) {
+                const data = await resp.json();
+                hideUploadLoading(true);
+                toast(data.success_count + '/' + data.total + '개 파일 업로드 완료');
+                renderUploadResult(data.results);
+                loadKnowledge(1);
+            } else {
+                hideUploadLoading(false);
+                const data = await resp.json();
+                toast('업로드 실패: ' + (data.detail || ''), 'error');
+            }
+        } catch(e) { hideUploadLoading(false); toast('업로드에 실패했습니다.', 'error'); }
+        document.getElementById('fileInput').value = '';
+    }
+
+    async function uploadText() {
+        const title = document.getElementById('textTitle').value.trim();
+        const content = document.getElementById('textContent').value.trim();
+        if (!content || isUploading) { if (!content) toast('내용을 입력하세요.', 'error'); return; }
+        showUploadLoading('텍스트 분석 중...');
+        try {
+            const resp = await api('/api/ingest/text', {
+                method: 'POST',
+                body: { title: title || 'Untitled', content, source_type: document.getElementById('uploadSourceType').value }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                hideUploadLoading(true);
+                toast('업로드 완료: ' + data.title);
+                renderUploadResult([data]);
+                document.getElementById('textTitle').value = '';
+                document.getElementById('textContent').value = '';
+                loadKnowledge(1);
+            } else {
+                hideUploadLoading(false);
+                const data = await resp.json();
+                toast('업로드 실패: ' + (data.detail || ''), 'error');
+            }
+        } catch(e) { hideUploadLoading(false); toast('업로드에 실패했습니다.', 'error'); }
+    }
+
+    /* ── Global Search ── */
+    async function globalSearchDocs() {
+        const query = document.getElementById('globalSearch').value.trim();
+        if (!query) return;
+        navigate('search-test');
+        setTimeout(() => {
+            document.getElementById('searchQuery').value = query;
+            runSearchTest();
+        }, 100);
+    }
+
+    /* ============================================================
+       UTILITIES
+       ============================================================ */
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function truncate(str, len) {
+        if (!str) return '';
+        return str.length > len ? str.substring(0, len) + '...' : str;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0') + ' ' +
+                String(d.getHours()).padStart(2, '0') + ':' +
+                String(d.getMinutes()).padStart(2, '0');
+        } catch(e) { return dateStr; }
+    }
+
+    function renderPagination(containerId, current, totalPages, callback) {
+        const container = document.getElementById(containerId);
+        if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+        let html = '';
+        html += '<button ' + (current <= 1 ? 'disabled' : '') + ' onclick="void(0)" data-page="' + (current - 1) + '">이전</button>';
+
+        const start = Math.max(1, current - 2);
+        const end = Math.min(totalPages, current + 2);
+        for (let i = start; i <= end; i++) {
+            html += '<button class="' + (i === current ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+
+        html += '<button ' + (current >= totalPages ? 'disabled' : '') + ' onclick="void(0)" data-page="' + (current + 1) + '">다음</button>';
+        container.innerHTML = html;
+
+        container.querySelectorAll('button:not(:disabled)').forEach(btn => {
+            btn.addEventListener('click', () => callback(parseInt(btn.dataset.page)));
+        });
+    }
+</script>
+
+</body>
+</html>

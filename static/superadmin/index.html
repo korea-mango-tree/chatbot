@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슈퍼어드민</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', -apple-system, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 260px;
+            background: #0f0f23;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+            z-index: 100;
+        }
+        .sidebar-header {
+            padding: 24px 20px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sidebar-header .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .sidebar-header h1 { color: #fff; font-size: 18px; font-weight: 700; }
+
+        .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            color: #8892b0;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 14px;
+            margin-bottom: 2px;
+            text-decoration: none;
+        }
+        .nav-item:hover { color: #ccd6f6; background: rgba(255,255,255,0.05); }
+        .nav-item.active { color: #fff; background: #6366f1; }
+        .nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px;
+            color: #4a5568;
+        }
+
+        /* ── Main ── */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .topbar {
+            background: #fff;
+            padding: 0 28px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .topbar-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f0f23;
+        }
+        .topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .topbar-user {
+            font-size: 13px;
+            color: #4a5568;
+            font-weight: 600;
+        }
+        .topbar-logout {
+            background: none;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .topbar-logout:hover { border-color: #e53e3e; color: #e53e3e; }
+        .mobile-menu-btn {
+            display: none;
+            background: none; border: none;
+            font-size: 24px; cursor: pointer; color: #4a5568;
+        }
+
+        /* ── Content ── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px;
+        }
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-title {
+            font-size: 22px; font-weight: 700; color: #1a202c; margin-bottom: 24px;
+        }
+
+        /* ── Stat Cards ── */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid #edf2f7;
+        }
+        .stat-card .label { font-size: 13px; color: #718096; margin-bottom: 8px; }
+        .stat-card .value { font-size: 32px; font-weight: 700; color: #1a202c; }
+        .stat-card .icon-bg {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; margin-bottom: 12px;
+        }
+        .stat-card .icon-bg.indigo { background: #eef2ff; }
+        .stat-card .icon-bg.green { background: #f0fdf4; }
+        .stat-card .icon-bg.blue { background: #eff6ff; }
+        .stat-card .icon-bg.amber { background: #fffbeb; }
+        .stat-card .icon-bg.purple { background: #faf5ff; }
+        .stat-card .icon-bg.rose { background: #fff1f2; }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid #edf2f7;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-header h3 { font-size: 16px; font-weight: 600; color: #1a202c; }
+        .card-body { padding: 0; }
+        .card-body.padded { padding: 24px; }
+
+        /* ── Tables ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            background: #f7fafc;
+            color: #718096;
+            font-weight: 600;
+            font-size: 12px;
+            border-bottom: 1px solid #edf2f7;
+            white-space: nowrap;
+        }
+        table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #4a5568;
+            vertical-align: middle;
+        }
+        table tr:hover { background: #f7fafc; }
+        table tr:last-child td { border-bottom: none; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn-primary { background: #6366f1; color: #fff; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-secondary { background: #edf2f7; color: #4a5568; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #fff5f5; color: #ef4444; border: 1px solid #fecaca; }
+        .btn-danger:hover { background: #fecaca; }
+        .btn-warning { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .btn-warning:hover { background: #fde68a; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Forms ── */
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #6366f1;
+        }
+        .form-row { display: flex; gap: 16px; }
+        .form-row .form-group { flex: 1; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 560px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 17px; font-weight: 600; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: #a0aec0;
+            line-height: 1;
+        }
+        .modal-close:hover { color: #4a5568; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ── Badges ── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-green { background: #dcfce7; color: #16a34a; }
+        .badge-yellow { background: #fef9c3; color: #ca8a04; }
+        .badge-blue { background: #dbeafe; color: #2563eb; }
+        .badge-red { background: #fee2e2; color: #ef4444; }
+        .badge-gray { background: #f3f4f6; color: #6b7280; }
+        .badge-indigo { background: #e0e7ff; color: #6366f1; }
+
+        /* ── Progress Bar ── */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .progress-bar .fill.green { background: #22c55e; }
+        .progress-bar .fill.yellow { background: #eab308; }
+        .progress-bar .fill.red { background: #ef4444; }
+
+        /* ── Pagination ── */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 16px;
+        }
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #4a5568;
+            font-family: inherit;
+        }
+        .pagination button:hover { border-color: #6366f1; color: #6366f1; }
+        .pagination button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Empty ── */
+        .empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: #a0aec0;
+        }
+        .empty .icon { font-size: 40px; margin-bottom: 12px; }
+        .empty p { font-size: 14px; }
+
+        /* ── Toasts ── */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: #1a202c;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+        }
+        .toast.success { background: #22c55e; }
+        .toast.error { background: #ef4444; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ── Filter Bar ── */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 8px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+        }
+        .filter-bar select:focus, .filter-bar input:focus {
+            border-color: #6366f1;
+        }
+
+        /* ── Info Grid ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .info-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 24px;
+            border: 1px solid #edf2f7;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .info-card h4 {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+        .info-card .val {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+        .info-card .sub {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 4px;
+        }
+
+        /* ── Plan Table ── */
+        .plan-table th, .plan-table td {
+            text-align: center;
+        }
+        .plan-table th:first-child, .plan-table td:first-child {
+            text-align: left;
+        }
+
+        /* ── Sidebar Overlay (mobile) ── */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 99;
+        }
+        .sidebar-overlay.open { display: block; }
+
+        /* ── Truncate ── */
+        .truncate {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0; top: 0; bottom: 0;
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-menu-btn { display: block; }
+            .content { padding: 16px; }
+            .stat-cards { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar Overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-icon">&#x1f6e1;</div>
+        <h1>슈퍼어드민</h1>
+    </div>
+    <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+            <span class="icon">&#x1f4ca;</span> 대시보드
+        </a>
+        <a class="nav-item" data-page="tenants" onclick="navigate('tenants')">
+            <span class="icon">&#x1f3e2;</span> 테넌트 관리
+        </a>
+        <a class="nav-item" data-page="usage" onclick="navigate('usage')">
+            <span class="icon">&#x1f4c8;</span> 사용량 모니터
+        </a>
+        <a class="nav-item" data-page="billing" onclick="navigate('billing')">
+            <span class="icon">&#x1f4b3;</span> 과금 관리
+        </a>
+        <a class="nav-item" data-page="monitoring" onclick="navigate('monitoring')">
+            <span class="icon">&#x1f4ac;</span> 채팅 모니터링
+        </a>
+        <a class="nav-item" data-page="errors" onclick="navigate('errors')">
+            <span class="icon">&#x26a0;</span> 에러 로그
+        </a>
+        <a class="nav-item" data-page="system" onclick="navigate('system')">
+            <span class="icon">&#x2699;</span> 시스템 상태
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        슈퍼어드민 패널 v1.0
+    </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">&#x2630;</button>
+        <span class="topbar-title">슈퍼어드민</span>
+        <div class="topbar-right">
+            <span class="topbar-user" id="adminName">관리자</span>
+            <button class="topbar-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+        <!-- ============ 대시보드 ============ -->
+        <div class="page active" id="page-dashboard">
+            <h2 class="page-title">대시보드</h2>
+            <div class="stat-cards" id="dashboardStats">
+                <div class="stat-card">
+                    <div class="icon-bg indigo">&#x1f3e2;</div>
+                    <div class="label">전체 테넌트</div>
+                    <div class="value" id="statTotalTenants">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-bg green">&#x2705;</div>
+                    <div class="label">활성 테넌트</div>
+                    <div class="value" id="statActiveTenants">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-bg blue">&#x1f4c4;</div>
+                    <div class="label">전체 문서</div>
+                    <div class="value" id="statTotalDocs">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-bg amber">&#x1f9e9;</div>
+                    <div class="label">전체 청크</div>
+                    <div class="value" id="statTotalChunks">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-bg purple">&#x1f4ac;</div>
+                    <div class="label">전체 세션</div>
+                    <div class="value" id="statTotalSessions">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-bg rose">&#x1f4e8;</div>
+                    <div class="label">오늘 메시지</div>
+                    <div class="value" id="statTodayMessages">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 테넌트 관리 ============ -->
+        <div class="page" id="page-tenants">
+            <h2 class="page-title">테넌트 관리</h2>
+            <div class="card">
+                <div class="card-header">
+                    <h3>테넌트 목록</h3>
+                    <button class="btn btn-primary" onclick="openTenantCreate()">+ 테넌트 생성</button>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>슬러그</th>
+                                <th>플랜</th>
+                                <th>상태</th>
+                                <th>문서</th>
+                                <th>메시지</th>
+                                <th>생성일</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenantsTableBody">
+                            <tr><td colspan="8" class="empty"><p>로딩 중...</p></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" id="tenantsPagination"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 사용량 모니터 ============ -->
+        <div class="page" id="page-usage">
+            <h2 class="page-title">사용량 모니터</h2>
+            <div class="card">
+                <div class="card-header">
+                    <h3>테넌트별 사용량</h3>
+                    <button class="btn btn-secondary" onclick="loadUsage()">&#x1f504; 새로고침</button>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>테넌트</th>
+                                <th>플랜</th>
+                                <th>메시지 사용</th>
+                                <th>문서 사용</th>
+                                <th>메시지 한도</th>
+                                <th>메시지 사용률</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usageTableBody">
+                            <tr><td colspan="6" class="empty"><p>로딩 중...</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 과금 관리 ============ -->
+        <div class="page" id="page-billing">
+            <h2 class="page-title">과금 관리</h2>
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <h3>플랜 정의</h3>
+                </div>
+                <div class="card-body">
+                    <table class="plan-table">
+                        <thead>
+                            <tr>
+                                <th>플랜</th>
+                                <th>문서 한도</th>
+                                <th>월간 메시지 한도</th>
+                                <th>가격</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-gray">Free</span></td>
+                                <td>100</td>
+                                <td>1,000</td>
+                                <td>무료</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-blue">Basic</span></td>
+                                <td>500</td>
+                                <td>5,000</td>
+                                <td>기본</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-indigo">Pro</span></td>
+                                <td>2,000</td>
+                                <td>20,000</td>
+                                <td>프로</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-green">Enterprise</span></td>
+                                <td>무제한</td>
+                                <td>무제한</td>
+                                <td>맞춤</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>테넌트 플랜 현황</h3>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>테넌트</th>
+                                <th>현재 플랜</th>
+                                <th>상태</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="billingTenantsBody">
+                            <tr><td colspan="4" class="empty"><p>로딩 중...</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 채팅 모니터링 ============ -->
+        <div class="page" id="page-monitoring">
+            <h2 class="page-title">채팅 모니터링</h2>
+            <div class="card">
+                <div class="card-header">
+                    <h3>최근 채팅 세션</h3>
+                    <button class="btn btn-secondary" onclick="loadMonitoring()">&#x1f504; 새로고침</button>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>테넌트</th>
+                                <th>세션 키</th>
+                                <th>메시지 수</th>
+                                <th>마지막 메시지</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monitoringTableBody">
+                            <tr><td colspan="5" class="empty"><p>로딩 중...</p></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" id="monitoringPagination"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 에러 로그 ============ -->
+        <div class="page" id="page-errors">
+            <h2 class="page-title">에러 로그</h2>
+            <div class="card">
+                <div class="card-header">
+                    <h3>에러 로그</h3>
+                    <div class="filter-bar">
+                        <select id="errorStatusFilter" onchange="loadErrors()">
+                            <option value="">전체 상태</option>
+                            <option value="4xx">4xx 에러</option>
+                            <option value="5xx">5xx 에러</option>
+                        </select>
+                        <input type="date" id="errorDateFrom" onchange="loadErrors()">
+                        <input type="date" id="errorDateTo" onchange="loadErrors()">
+                        <button class="btn btn-secondary btn-sm" onclick="loadErrors()">검색</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>엔드포인트</th>
+                                <th>메서드</th>
+                                <th>상태 코드</th>
+                                <th>에러 메시지</th>
+                                <th>상세</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorsTableBody">
+                            <tr><td colspan="6" class="empty"><p>로딩 중...</p></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" id="errorsPagination"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 시스템 상태 ============ -->
+        <div class="page" id="page-system">
+            <h2 class="page-title">시스템 상태</h2>
+            <div class="info-grid" style="margin-bottom: 24px;">
+                <div class="info-card">
+                    <h4>서버 버전</h4>
+                    <div class="val" id="sysVersion">v1.0.0</div>
+                    <div class="sub">RAG Chatbot Server</div>
+                </div>
+                <div class="info-card">
+                    <h4>DB 상태</h4>
+                    <div class="val" id="sysDbStatus" style="color:#22c55e;">정상</div>
+                    <div class="sub">PostgreSQL</div>
+                </div>
+                <div class="info-card">
+                    <h4>업타임</h4>
+                    <div class="val" id="sysUptime">-</div>
+                    <div class="sub">서버 가동 시간</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>API 요약</h3>
+                    <button class="btn btn-secondary" onclick="loadSystem()">&#x1f504; 새로고침</button>
+                </div>
+                <div class="card-body padded">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h4>오늘 총 요청</h4>
+                            <div class="val" id="sysTotalRequests">-</div>
+                        </div>
+                        <div class="info-card">
+                            <h4>평균 응답 시간</h4>
+                            <div class="val" id="sysAvgResponse">-</div>
+                        </div>
+                        <div class="info-card">
+                            <h4>에러율</h4>
+                            <div class="val" id="sysErrorRate">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- .content -->
+</div><!-- .main -->
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Tenant Create/Edit Modal -->
+<div class="modal-overlay" id="tenantModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="tenantModalTitle">테넌트 생성</h3>
+            <button class="modal-close" onclick="closeTenantModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="tenantEditId">
+            <div class="form-group">
+                <label>테넌트 이름</label>
+                <input type="text" id="tenantName" placeholder="예: 마이컴퍼니">
+            </div>
+            <div class="form-group">
+                <label>슬러그</label>
+                <input type="text" id="tenantSlug" placeholder="예: my-company">
+            </div>
+            <div class="form-group">
+                <label>플랜</label>
+                <select id="tenantPlan">
+                    <option value="free">Free</option>
+                    <option value="basic">Basic</option>
+                    <option value="pro">Pro</option>
+                    <option value="enterprise">Enterprise</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>최대 문서 수</label>
+                    <input type="number" id="tenantMaxDocs" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label>월간 메시지 한도</label>
+                    <input type="number" id="tenantMaxMessages" placeholder="1000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>허용 도메인</label>
+                <input type="text" id="tenantAllowedDomains" placeholder="쉼표로 구분 (예: acme.co.kr, shop.example.com). 비워두면 전체 허용">
+                <small style="color:#888;font-size:11px;margin-top:4px;display:block;">임베드 위젯이 동작할 도메인을 지정합니다. 비어있으면 모든 도메인에서 허용됩니다.</small>
+            </div>
+            <div class="form-group" id="tenantStatusGroup" style="display:none;">
+                <label>상태</label>
+                <select id="tenantStatus">
+                    <option value="active">활성</option>
+                    <option value="suspended">일시정지</option>
+                    <option value="trial">체험판</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTenantModal()">취소</button>
+            <button class="btn btn-primary" id="tenantSaveBtn" onclick="saveTenant()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tenant Admins Modal -->
+<div class="modal-overlay" id="adminsModal">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="adminsModalTitle">관리자 계정</h3>
+            <button class="modal-close" onclick="document.getElementById('adminsModal').classList.remove('open')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="adminsListArea" style="margin-bottom:16px;"></div>
+            <hr style="border-color:#2d2d44;margin:16px 0;">
+            <h4 style="margin-bottom:12px;font-size:14px;">계정 추가</h4>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input type="hidden" id="adminsTenantId">
+                <input type="text" id="newAdminUsername" placeholder="아이디" style="flex:1;min-width:120px;padding:8px 12px;border-radius:8px;border:1px solid #3d3d5c;background:#1e1e36;color:#fff;">
+                <input type="text" id="newAdminName" placeholder="이름" style="flex:1;min-width:100px;padding:8px 12px;border-radius:8px;border:1px solid #3d3d5c;background:#1e1e36;color:#fff;">
+                <input type="text" id="newAdminPassword" placeholder="비밀번호" value="admin1234" style="flex:1;min-width:120px;padding:8px 12px;border-radius:8px;border:1px solid #3d3d5c;background:#1e1e36;color:#fff;">
+                <button class="btn btn-primary btn-sm" onclick="createTenantAdmin()">추가</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Detail Modal -->
+<div class="modal-overlay" id="errorDetailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>에러 상세</h3>
+            <button class="modal-close" onclick="closeErrorDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="errorDetailContent" style="font-size:13px; line-height:1.8; word-break:break-all;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeErrorDetailModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ============================================================
+       CORE: Auth, API, Router
+       ============================================================ */
+    const TOKEN_KEY = 'superadmin_token';
+    let currentPage = 'dashboard';
+    let adminUser = null;
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+    async function api(url, opts = {}) {
+        const token = getToken();
+        const headers = opts.headers || {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(opts.body);
+        }
+        opts.headers = headers;
+        const resp = await fetch(url, opts);
+        if (resp.status === 401) {
+            localStorage.removeItem(TOKEN_KEY);
+            window.location.href = '/superadmin/login.html';
+            throw new Error('Unauthorized');
+        }
+        return resp;
+    }
+
+    async function apiJson(url, opts = {}) {
+        const resp = await api(url, opts);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || err.message || '요청 실패 (' + resp.status + ')');
+        }
+        return await resp.json();
+    }
+
+    function toast(msg, type = 'success') {
+        const el = document.createElement('div');
+        el.className = 'toast ' + type;
+        el.textContent = msg;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+
+    function navigate(page) {
+        window.location.hash = page;
+    }
+
+    function handleRoute() {
+        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        currentPage = hash;
+
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const pageEl = document.getElementById('page-' + hash);
+        if (pageEl) pageEl.classList.add('active');
+
+        document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.toggle('active', n.dataset.page === hash);
+        });
+
+        // Close mobile sidebar
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
+
+        loadPageData(hash);
+    }
+
+    function loadPageData(hash) {
+        switch (hash) {
+            case 'dashboard': loadDashboard(); break;
+            case 'tenants': loadTenants(); break;
+            case 'usage': loadUsage(); break;
+            case 'billing': loadBilling(); break;
+            case 'monitoring': loadMonitoring(); break;
+            case 'errors': loadErrors(); break;
+            case 'system': loadSystem(); break;
+        }
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function logout() {
+        localStorage.removeItem(TOKEN_KEY);
+        window.location.href = '/superadmin/login.html';
+    }
+
+    function formatDate(d) {
+        if (!d) return '-';
+        const dt = new Date(d);
+        return dt.toLocaleDateString('ko-KR') + ' ' + dt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatNumber(n) {
+        if (n == null) return '-';
+        return Number(n).toLocaleString('ko-KR');
+    }
+
+    function statusBadge(status) {
+        const map = {
+            active: 'badge-green',
+            suspended: 'badge-yellow',
+            trial: 'badge-blue',
+            inactive: 'badge-gray'
+        };
+        const labels = {
+            active: '활성',
+            suspended: '일시정지',
+            trial: '체험판',
+            inactive: '비활성'
+        };
+        const cls = map[status] || 'badge-gray';
+        const label = labels[status] || status;
+        return '<span class="badge ' + cls + '">' + label + '</span>';
+    }
+
+    function planBadge(plan) {
+        const map = {
+            free: 'badge-gray',
+            basic: 'badge-blue',
+            pro: 'badge-indigo',
+            enterprise: 'badge-green'
+        };
+        const cls = map[plan] || 'badge-gray';
+        return '<span class="badge ' + cls + '">' + (plan || '-') + '</span>';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    (async function init() {
+        try {
+            const resp = await api('/api/auth/me');
+            if (!resp.ok) throw new Error();
+            const data = await resp.json();
+            if (data.role !== 'superadmin') {
+                throw new Error('Not superadmin');
+            }
+            adminUser = data;
+            document.getElementById('adminName').textContent = data.username || '슈퍼어드민';
+        } catch(e) {
+            window.location.href = '/superadmin/login.html';
+            return;
+        }
+
+        marked.setOptions({ breaks: true, gfm: true });
+        handleRoute();
+        window.addEventListener('hashchange', handleRoute);
+    })();
+
+    /* ============================================================
+       1. 대시보드
+       ============================================================ */
+    async function loadDashboard() {
+        try {
+            const data = await apiJson('/api/superadmin/stats');
+            document.getElementById('statTotalTenants').textContent = formatNumber(data.total_tenants);
+            document.getElementById('statActiveTenants').textContent = formatNumber(data.active_tenants);
+            document.getElementById('statTotalDocs').textContent = formatNumber(data.total_documents);
+            document.getElementById('statTotalChunks').textContent = formatNumber(data.total_chunks);
+            document.getElementById('statTotalSessions').textContent = formatNumber(data.total_sessions);
+            document.getElementById('statTodayMessages').textContent = formatNumber(data.today_messages);
+        } catch(e) {
+            console.error('Dashboard load error:', e);
+        }
+    }
+
+    /* ============================================================
+       2. 테넌트 관리
+       ============================================================ */
+    let tenantsPage = 1;
+
+    async function loadTenants(page) {
+        if (page) tenantsPage = page;
+        const tbody = document.getElementById('tenantsTableBody');
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#a0aec0;">로딩 중...</td></tr>';
+
+        try {
+            const data = await apiJson('/api/superadmin/tenants?page=' + tenantsPage + '&per_page=20');
+            const tenants = Array.isArray(data) ? data : (data.items || data.tenants || []);
+            const total = data.total || tenants.length;
+            const perPage = data.per_page || 20;
+
+            if (tenants.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="icon">&#x1f3e2;</div><p>등록된 테넌트가 없습니다.</p></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tenants.map(t => `
+                <tr>
+                    <td><strong>${escapeHtml(t.name)}</strong></td>
+                    <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:12px;">${escapeHtml(t.slug)}</code></td>
+                    <td>${planBadge(t.plan)}</td>
+                    <td>${statusBadge(t.status)}</td>
+                    <td>${formatNumber(t.document_count != null ? t.document_count : t.documents_count)}</td>
+                    <td>${formatNumber(t.message_count != null ? t.message_count : t.messages_count)}</td>
+                    <td style="font-size:12px;color:#718096;">${formatDate(t.created_at)}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm" onclick="openTenantEdit('${t.id}')">수정</button>
+                            <button class="btn btn-primary btn-sm" onclick="openTenantAdmins('${t.id}', '${escapeHtml(t.name)}')">계정</button>
+                            <button class="btn btn-warning btn-sm" onclick="suspendTenant('${t.id}', '${t.status}')">
+                                ${t.status === 'suspended' ? '활성화' : '일시정지'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteTenant('${t.id}', '${escapeHtml(t.name)}')">삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination('tenantsPagination', tenantsPage, Math.ceil(total / perPage), loadTenants);
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><p>데이터를 불러올 수 없습니다.</p></div></td></tr>';
+            console.error('Tenants load error:', e);
+        }
+    }
+
+    function openTenantCreate() {
+        document.getElementById('tenantModalTitle').textContent = '테넌트 생성';
+        document.getElementById('tenantEditId').value = '';
+        document.getElementById('tenantName').value = '';
+        document.getElementById('tenantSlug').value = '';
+        document.getElementById('tenantPlan').value = 'free';
+        document.getElementById('tenantMaxDocs').value = '100';
+        document.getElementById('tenantMaxMessages').value = '1000';
+        document.getElementById('tenantAllowedDomains').value = '';
+        document.getElementById('tenantStatusGroup').style.display = 'none';
+        document.getElementById('tenantModal').classList.add('open');
+    }
+
+    async function openTenantEdit(id) {
+        try {
+            const t = await apiJson('/api/superadmin/tenants/' + id);
+            document.getElementById('tenantModalTitle').textContent = '테넌트 수정';
+            document.getElementById('tenantEditId').value = id;
+            document.getElementById('tenantName').value = t.name || '';
+            document.getElementById('tenantSlug').value = t.slug || '';
+            document.getElementById('tenantPlan').value = t.plan || 'free';
+            document.getElementById('tenantMaxDocs').value = t.max_documents || '';
+            document.getElementById('tenantMaxMessages').value = t.max_monthly_messages || '';
+            document.getElementById('tenantStatus').value = t.status || 'active';
+            var domains = t.allowed_domains || [];
+            if (typeof domains === 'string') { try { domains = JSON.parse(domains); } catch(e) { domains = []; } }
+            document.getElementById('tenantAllowedDomains').value = Array.isArray(domains) ? domains.join(', ') : '';
+            document.getElementById('tenantStatusGroup').style.display = 'block';
+            document.getElementById('tenantModal').classList.add('open');
+        } catch(e) {
+            toast('테넌트 정보를 불러올 수 없습니다.', 'error');
+        }
+    }
+
+    function closeTenantModal() {
+        document.getElementById('tenantModal').classList.remove('open');
+    }
+
+    async function saveTenant() {
+        const id = document.getElementById('tenantEditId').value;
+        const payload = {
+            name: document.getElementById('tenantName').value.trim(),
+            slug: document.getElementById('tenantSlug').value.trim(),
+            plan: document.getElementById('tenantPlan').value,
+            max_documents: parseInt(document.getElementById('tenantMaxDocs').value) || 100,
+            max_monthly_messages: parseInt(document.getElementById('tenantMaxMessages').value) || 1000
+        };
+
+        const domainsStr = document.getElementById('tenantAllowedDomains').value.trim();
+        payload.allowed_domains = domainsStr ? domainsStr.split(',').map(d => d.trim()).filter(d => d) : [];
+
+        if (!payload.name || !payload.slug) {
+            toast('이름과 슬러그를 입력하세요.', 'error');
+            return;
+        }
+
+        if (id) {
+            payload.status = document.getElementById('tenantStatus').value;
+        }
+
+        const btn = document.getElementById('tenantSaveBtn');
+        btn.disabled = true;
+
+        try {
+            if (id) {
+                await apiJson('/api/superadmin/tenants/' + id, { method: 'PUT', body: payload });
+                toast('테넌트가 수정되었습니다.');
+            } else {
+                await apiJson('/api/superadmin/tenants', { method: 'POST', body: payload });
+                toast('테넌트가 생성되었습니다.');
+            }
+            closeTenantModal();
+            loadTenants();
+        } catch(e) {
+            toast(e.message || '저장에 실패했습니다.', 'error');
+        }
+
+        btn.disabled = false;
+    }
+
+    async function suspendTenant(id, currentStatus) {
+        const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+        const msg = newStatus === 'suspended' ? '이 테넌트를 일시정지하시겠습니까?' : '이 테넌트를 다시 활성화하시겠습니까?';
+        if (!confirm(msg)) return;
+
+        try {
+            await apiJson('/api/superadmin/tenants/' + id, {
+                method: 'PUT',
+                body: { status: newStatus }
+            });
+            toast(newStatus === 'suspended' ? '테넌트가 일시정지되었습니다.' : '테넌트가 활성화되었습니다.');
+            loadTenants();
+        } catch(e) {
+            toast(e.message || '상태 변경에 실패했습니다.', 'error');
+        }
+    }
+
+    async function deleteTenant(id, name) {
+        if (!confirm('정말 "' + name + '" 테넌트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+
+        try {
+            await apiJson('/api/superadmin/tenants/' + id, { method: 'DELETE' });
+            toast('테넌트가 삭제되었습니다.');
+            loadTenants();
+        } catch(e) {
+            toast(e.message || '삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    /* ── 테넌트 관리자 계정 ── */
+    async function openTenantAdmins(tenantId, tenantName) {
+        document.getElementById('adminsModalTitle').textContent = tenantName + ' - 관리자 계정';
+        document.getElementById('adminsTenantId').value = tenantId;
+        document.getElementById('newAdminUsername').value = '';
+        document.getElementById('newAdminName').value = '';
+        document.getElementById('newAdminPassword').value = 'admin1234';
+        document.getElementById('adminsModal').classList.add('open');
+        await refreshAdminsList(tenantId);
+    }
+
+    async function refreshAdminsList(tenantId) {
+        const area = document.getElementById('adminsListArea');
+        area.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:12px;">로딩 중...</div>';
+        try {
+            const data = await apiJson('/api/superadmin/tenants/' + tenantId + '/admins');
+            const admins = data.admins || [];
+            if (!admins.length) {
+                area.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:12px;">등록된 계정이 없습니다.</div>';
+                return;
+            }
+            area.innerHTML = '<table class="data-table" style="width:100%;"><thead><tr><th>아이디</th><th>이름</th><th>역할</th><th>생성일</th><th>작업</th></tr></thead><tbody>' +
+                admins.map(a => `<tr>
+                    <td><code style="font-size:13px;">${escapeHtml(a.username)}</code></td>
+                    <td>${escapeHtml(a.name)}</td>
+                    <td>${a.role}</td>
+                    <td style="font-size:12px;">${formatDate(a.created_at)}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="resetAdminPw('${tenantId}', ${a.id}, '${escapeHtml(a.username)}')">PW초기화</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAdmin('${tenantId}', ${a.id}, '${escapeHtml(a.username)}')">삭제</button>
+                    </td>
+                </tr>`).join('') + '</tbody></table>';
+        } catch(e) {
+            area.innerHTML = '<div style="color:#e53e3e;padding:12px;">불러오기 실패</div>';
+        }
+    }
+
+    async function createTenantAdmin() {
+        const tenantId = document.getElementById('adminsTenantId').value;
+        const username = document.getElementById('newAdminUsername').value.trim();
+        const name = document.getElementById('newAdminName').value.trim();
+        const password = document.getElementById('newAdminPassword').value.trim();
+        if (!username || !name) { toast('아이디와 이름을 입력하세요.', 'error'); return; }
+        try {
+            await apiJson('/api/superadmin/tenants/' + tenantId + '/admins', {
+                method: 'POST', body: { username, name, password: password || 'admin1234' }
+            });
+            toast('계정이 생성되었습니다.');
+            document.getElementById('newAdminUsername').value = '';
+            document.getElementById('newAdminName').value = '';
+            await refreshAdminsList(tenantId);
+        } catch(e) { toast('생성 실패: ' + (e.message || ''), 'error'); }
+    }
+
+    async function resetAdminPw(tenantId, adminId, username) {
+        if (!confirm(username + ' 비밀번호를 admin1234로 초기화하시겠습니까?')) return;
+        try {
+            await apiJson('/api/superadmin/tenants/' + tenantId + '/admins/' + adminId + '/reset-password', { method: 'PUT' });
+            toast('비밀번호가 초기화되었습니다.');
+        } catch(e) { toast('초기화 실패', 'error'); }
+    }
+
+    async function deleteAdmin(tenantId, adminId, username) {
+        if (!confirm(username + ' 계정을 삭제하시겠습니까?')) return;
+        try {
+            await apiJson('/api/superadmin/tenants/' + tenantId + '/admins/' + adminId, { method: 'DELETE' });
+            toast('계정이 삭제되었습니다.');
+            await refreshAdminsList(tenantId);
+        } catch(e) { toast('삭제 실패', 'error'); }
+    }
+
+    /* ============================================================
+       3. 사용량 모니터
+       ============================================================ */
+    async function loadUsage() {
+        const tbody = document.getElementById('usageTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#a0aec0;">로딩 중...</td></tr>';
+
+        try {
+            const data = await apiJson('/api/superadmin/usage');
+            const items = Array.isArray(data) ? data : (data.items || data.usage || []);
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>사용량 데이터가 없습니다.</p></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = items.map(u => {
+                const msgLimit = u.max_monthly_messages || u.message_limit || 0;
+                const msgCount = u.message_count || 0;
+                const docCount = u.document_count || 0;
+                const pct = msgLimit > 0 ? Math.min(100, Math.round((msgCount / msgLimit) * 100)) : 0;
+                const barClass = pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green';
+
+                return `<tr>
+                    <td><strong>${escapeHtml(u.tenant_name || u.name)}</strong></td>
+                    <td>${planBadge(u.plan)}</td>
+                    <td>${formatNumber(msgCount)}</td>
+                    <td>${formatNumber(docCount)}</td>
+                    <td>${msgLimit > 0 ? formatNumber(msgLimit) : '무제한'}</td>
+                    <td style="min-width:180px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="progress-bar" style="flex:1;">
+                                <div class="fill ${barClass}" style="width:${pct}%"></div>
+                            </div>
+                            <span style="font-size:12px;font-weight:600;color:${pct >= 90 ? '#ef4444' : '#4a5568'}">${pct}%</span>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>데이터를 불러올 수 없습니다.</p></div></td></tr>';
+            console.error('Usage load error:', e);
+        }
+    }
+
+    /* ============================================================
+       4. 과금 관리
+       ============================================================ */
+    async function loadBilling() {
+        const tbody = document.getElementById('billingTenantsBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#a0aec0;">로딩 중...</td></tr>';
+
+        try {
+            const data = await apiJson('/api/superadmin/tenants?per_page=100');
+            const tenants = Array.isArray(data) ? data : (data.items || data.tenants || []);
+
+            if (tenants.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>테넌트가 없습니다.</p></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tenants.map(t => `
+                <tr>
+                    <td><strong>${escapeHtml(t.name)}</strong></td>
+                    <td>${planBadge(t.plan)}</td>
+                    <td>${statusBadge(t.status)}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openTenantEdit(${t.id})">플랜 변경</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>데이터를 불러올 수 없습니다.</p></div></td></tr>';
+        }
+    }
+
+    /* ============================================================
+       5. 채팅 모니터링
+       ============================================================ */
+    let monitoringPage = 1;
+
+    async function loadMonitoring(page) {
+        if (page) monitoringPage = page;
+        const tbody = document.getElementById('monitoringTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#a0aec0;">로딩 중...</td></tr>';
+
+        try {
+            const data = await apiJson('/api/sessions?page=' + monitoringPage + '&per_page=20');
+            const sessions = Array.isArray(data) ? data : (data.items || data.sessions || []);
+            const total = data.total || sessions.length;
+            const perPage = data.per_page || 20;
+
+            if (sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="icon">&#x1f4ac;</div><p>채팅 세션이 없습니다.</p></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sessions.map(s => {
+                const statusClass = s.status === 'active' ? 'badge-green' : s.status === 'closed' ? 'badge-gray' : 'badge-yellow';
+                const statusLabel = s.status === 'active' ? '활성' : s.status === 'closed' ? '종료' : (s.status || '-');
+                return `<tr>
+                    <td>${escapeHtml(s.tenant_name || s.tenant_slug || '-')}</td>
+                    <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;">${escapeHtml(s.session_key || s.key || '')}</code></td>
+                    <td>${formatNumber(s.message_count)}</td>
+                    <td style="font-size:12px;color:#718096;">${formatDate(s.last_message_at || s.updated_at)}</td>
+                    <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+                </tr>`;
+            }).join('');
+
+            renderPagination('monitoringPagination', monitoringPage, Math.ceil(total / perPage), loadMonitoring);
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><p>데이터를 불러올 수 없습니다.</p></div></td></tr>';
+            console.error('Monitoring load error:', e);
+        }
+    }
+
+    /* ============================================================
+       6. 에러 로그
+       ============================================================ */
+    let errorsPage = 1;
+
+    async function loadErrors(page) {
+        if (page) errorsPage = page;
+        const tbody = document.getElementById('errorsTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#a0aec0;">로딩 중...</td></tr>';
+
+        let url = '/api/superadmin/logs?page=' + errorsPage + '&per_page=20';
+        const statusFilter = document.getElementById('errorStatusFilter').value;
+        const dateFrom = document.getElementById('errorDateFrom').value;
+        const dateTo = document.getElementById('errorDateTo').value;
+
+        if (statusFilter) url += '&status_code=' + statusFilter;
+        if (dateFrom) url += '&date_from=' + dateFrom;
+        if (dateTo) url += '&date_to=' + dateTo;
+
+        try {
+            const data = await apiJson(url);
+            const logs = Array.isArray(data) ? data : (data.items || data.logs || []);
+            const total = data.total || logs.length;
+            const perPage = data.per_page || 20;
+
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="icon">&#x2705;</div><p>에러 로그가 없습니다.</p></div></td></tr>';
+                document.getElementById('errorsPagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = logs.map((log, idx) => {
+                const sc = log.status_code || 0;
+                const scClass = sc >= 500 ? 'badge-red' : sc >= 400 ? 'badge-yellow' : 'badge-gray';
+                const msg = log.error_message || log.message || '-';
+                const truncMsg = msg.length > 80 ? msg.substring(0, 80) + '...' : msg;
+
+                return `<tr>
+                    <td style="font-size:12px;color:#718096;white-space:nowrap;">${formatDate(log.timestamp || log.created_at)}</td>
+                    <td><code style="font-size:12px;">${escapeHtml(log.endpoint || log.path || '-')}</code></td>
+                    <td><span class="badge badge-blue">${escapeHtml(log.method || '-')}</span></td>
+                    <td><span class="badge ${scClass}">${sc}</span></td>
+                    <td class="truncate" title="${escapeHtml(msg)}">${escapeHtml(truncMsg)}</td>
+                    <td><button class="btn btn-secondary btn-sm" onclick='showErrorDetail(${JSON.stringify(log).replace(/'/g, "\\'")})'> 상세</button></td>
+                </tr>`;
+            }).join('');
+
+            renderPagination('errorsPagination', errorsPage, Math.ceil(total / perPage), loadErrors);
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>데이터를 불러올 수 없습니다.</p></div></td></tr>';
+            console.error('Errors load error:', e);
+        }
+    }
+
+    function showErrorDetail(log) {
+        const content = document.getElementById('errorDetailContent');
+        content.innerHTML = `
+            <table style="width:100%;font-size:13px;">
+                <tr><td style="font-weight:600;padding:8px 12px;color:#718096;width:120px;">시간</td><td style="padding:8px 12px;">${formatDate(log.timestamp || log.created_at)}</td></tr>
+                <tr><td style="font-weight:600;padding:8px 12px;color:#718096;">엔드포인트</td><td style="padding:8px 12px;"><code>${escapeHtml(log.endpoint || log.path || '-')}</code></td></tr>
+                <tr><td style="font-weight:600;padding:8px 12px;color:#718096;">메서드</td><td style="padding:8px 12px;">${escapeHtml(log.method || '-')}</td></tr>
+                <tr><td style="font-weight:600;padding:8px 12px;color:#718096;">상태 코드</td><td style="padding:8px 12px;">${log.status_code || '-'}</td></tr>
+                <tr><td style="font-weight:600;padding:8px 12px;color:#718096;">에러 메시지</td><td style="padding:8px 12px;word-break:break-all;">${escapeHtml(log.error_message || log.message || '-')}</td></tr>
+                ${log.traceback ? '<tr><td style="font-weight:600;padding:8px 12px;color:#718096;vertical-align:top;">Traceback</td><td style="padding:8px 12px;"><pre style="background:#f7fafc;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;">' + escapeHtml(log.traceback) + '</pre></td></tr>' : ''}
+                ${log.request_body ? '<tr><td style="font-weight:600;padding:8px 12px;color:#718096;vertical-align:top;">Request Body</td><td style="padding:8px 12px;"><pre style="background:#f7fafc;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;">' + escapeHtml(typeof log.request_body === 'string' ? log.request_body : JSON.stringify(log.request_body, null, 2)) + '</pre></td></tr>' : ''}
+                ${log.user_agent ? '<tr><td style="font-weight:600;padding:8px 12px;color:#718096;">User Agent</td><td style="padding:8px 12px;font-size:11px;">' + escapeHtml(log.user_agent) + '</td></tr>' : ''}
+                ${log.ip ? '<tr><td style="font-weight:600;padding:8px 12px;color:#718096;">IP</td><td style="padding:8px 12px;">' + escapeHtml(log.ip) + '</td></tr>' : ''}
+            </table>
+        `;
+        document.getElementById('errorDetailModal').classList.add('open');
+    }
+
+    function closeErrorDetailModal() {
+        document.getElementById('errorDetailModal').classList.remove('open');
+    }
+
+    /* ============================================================
+       7. 시스템 상태
+       ============================================================ */
+    async function loadSystem() {
+        try {
+            const data = await apiJson('/api/superadmin/stats');
+            // Server info
+            document.getElementById('sysVersion').textContent = data.server_version || 'v1.0.0';
+            document.getElementById('sysDbStatus').textContent = data.db_status || '정상';
+            document.getElementById('sysDbStatus').style.color = (data.db_status === '오류' || data.db_status === 'error') ? '#ef4444' : '#22c55e';
+            document.getElementById('sysUptime').textContent = data.uptime || '-';
+
+            // API summary
+            document.getElementById('sysTotalRequests').textContent = formatNumber(data.total_requests_today || data.today_requests || 0);
+            document.getElementById('sysAvgResponse').textContent = (data.avg_response_time || data.avg_response_ms || '-') + (typeof (data.avg_response_time || data.avg_response_ms) === 'number' ? 'ms' : '');
+            const errorRate = data.error_rate != null ? data.error_rate : '-';
+            document.getElementById('sysErrorRate').textContent = typeof errorRate === 'number' ? errorRate.toFixed(2) + '%' : errorRate;
+        } catch(e) {
+            console.error('System load error:', e);
+        }
+    }
+
+    /* ============================================================
+       Pagination Helper
+       ============================================================ */
+    function renderPagination(containerId, current, totalPages, loadFn) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        html += '<button ' + (current <= 1 ? 'disabled' : '') + ' onclick="(' + loadFn.name + ')(' + (current - 1) + ')">&#x276E;</button>';
+
+        const start = Math.max(1, current - 2);
+        const end = Math.min(totalPages, current + 2);
+
+        if (start > 1) {
+            html += '<button onclick="(' + loadFn.name + ')(1)">1</button>';
+            if (start > 2) html += '<button disabled>...</button>';
+        }
+
+        for (let i = start; i <= end; i++) {
+            html += '<button class="' + (i === current ? 'active' : '') + '" onclick="(' + loadFn.name + ')(' + i + ')">' + i + '</button>';
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<button disabled>...</button>';
+            html += '<button onclick="(' + loadFn.name + ')(' + totalPages + ')">' + totalPages + '</button>';
+        }
+
+        html += '<button ' + (current >= totalPages ? 'disabled' : '') + ' onclick="(' + loadFn.name + ')(' + (current + 1) + ')">&#x276F;</button>';
+
+        container.innerHTML = html;
+    }
+
+</script>
+
+</body>
+</html>

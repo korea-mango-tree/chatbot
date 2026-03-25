@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 로그인</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin: 20px;
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .login-logo .icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #4a6cf7, #6b8cff);
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(74,108,247,0.3);
+        }
+        .login-logo h1 {
+            font-size: 24px;
+            color: #1a202c;
+            font-weight: 700;
+        }
+        .login-logo p {
+            font-size: 14px;
+            color: #a0aec0;
+            margin-top: 6px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74,108,247,0.1);
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4a6cf7, #6b8cff);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            margin-top: 8px;
+        }
+        .login-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74,108,247,0.4); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .error-msg {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: #c53030;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .error-msg.show { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="login-logo">
+        <div class="icon">🤖</div>
+        <h1>RAG 챗봇 관리자</h1>
+        <p>관리자 계정으로 로그인하세요</p>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+            <label for="username">아이디</label>
+            <input type="text" id="username" placeholder="아이디를 입력하세요" required autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">로그인</button>
+    </form>
+</div>
+
+<script>
+    // Check if already logged in
+    (async function checkAuth() {
+        const token = localStorage.getItem('admin_token');
+        if (!token) return;
+        try {
+            const resp = await fetch('/api/auth/me', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (resp.ok) {
+                window.location.href = '/admin/';
+            }
+        } catch(e) {}
+    })();
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const btn = document.getElementById('loginBtn');
+        const errEl = document.getElementById('errorMsg');
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        btn.disabled = true;
+        btn.textContent = '로그인 중...';
+        errEl.classList.remove('show');
+
+        try {
+            const resp = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data.access_token) {
+                localStorage.setItem('admin_token', data.access_token);
+                window.location.href = '/admin/';
+            } else {
+                errEl.textContent = data.detail || data.message || '로그인에 실패했습니다.';
+                errEl.classList.add('show');
+            }
+        } catch(err) {
+            errEl.textContent = '서버에 연결할 수 없습니다.';
+            errEl.classList.add('show');
+        }
+
+        btn.disabled = false;
+        btn.textContent = '로그인';
+    }
+</script>
+
+</body>
+</html>
